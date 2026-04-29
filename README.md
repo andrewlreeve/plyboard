@@ -1,15 +1,72 @@
-# Plyboard
+<p align="center">
+  <img src="assets/plyboard-logo.svg" width="560" alt="Plyboard">
+</p>
 
-Plyboard is a safe ecommerce agent runner for CLI-native AI workflows. The current milestone is the CLI product kernel: a mocked Product Readiness QA Blueprint that produces a structured action manifest, applies a policy engine, and writes reviewable audit artifacts.
+<p align="center">
+  <strong>YOLO-mode AI agents for ecommerce, without blowing up production.</strong>
+</p>
 
-## Run The Demo
+Plyboard is a safe ecommerce agent runner for CLI-native workflows. It lets operators run prebuilt Agent Blueprints with the tools, policies, shared brand context, audit trail, and rollback plan needed to use powerful agents safely.
+
+The current milestone is a CLI product kernel: a mocked **Product Readiness QA Blueprint** that runs two ecommerce agents, produces a structured action manifest, classifies every proposed action, and writes reviewable audit artifacts.
+
+## Why Plyboard
+
+The most capable agent workflows often require CLI access: Codex, MCP servers, Shopify AI Toolkit, scripts, repository tools, and other developer-oriented automation.
+
+Most ecommerce operators have never used a terminal. They should not need to install local tooling, configure credentials, wire up MCP servers, run shell commands, or guess which action might damage a live store.
+
+Plyboard gives those workflows an operator-safe control surface:
+
+- Agents run in isolated Docker SBX-style blueprints.
+- Retailer context is mounted read-only through shared `AGENTS.md` files or folders.
+- Raw Shopify and commerce API secrets stay outside the sandbox.
+- Proposed changes become structured manifests before execution.
+- Every action is classified as `safe`, `needs_approval`, or `blocked`.
+- Audit packets and rollback plans are generated for review.
+
+## Demo Blueprint
+
+The demo blueprint is **Product Readiness QA**.
+
+It runs two agents:
+
+- **Catalog QA Agent:** reviews draft products for missing enrichment, weak descriptions, SEO gaps, tags, variants, image alt text, photo quality, collection fit, and publish readiness.
+- **Storefront Merchandising Agent:** reviews the live storefront for product presentation, collection merchandising, product card quality, image consistency, weak positioning, and existing enrichment gaps.
+
+For the hackathon demo, the runner is mocked. The product shape is still real: sandboxed agents, scoped tool calls, policy-gated actions, shared brand context, audit output, and rollback notes.
+
+## Quick Start
+
+```bash
+npm install
+npm test
+```
+
+List and inspect the available blueprint:
 
 ```bash
 npm run plyboard -- blueprint list
 npm run plyboard -- blueprint inspect product-readiness-qa
+```
+
+Run the demo with shared brand context:
+
+```bash
 npm run plyboard -- run product-readiness-qa --target demo --safety-mode draft-only --context ./examples/brand-context
+```
+
+Review the latest manifest:
+
+```bash
 npm run plyboard -- review latest
+npm run plyboard -- review latest --only needs_approval
 npm run plyboard -- review latest --only blocked
+```
+
+Approve a mocked action and export the audit packet:
+
+```bash
 npm run plyboard -- approve latest --action act-005 --actor demo-operator
 npm run plyboard -- export-audit latest
 ```
@@ -17,10 +74,10 @@ npm run plyboard -- export-audit latest
 You can also run the executable directly:
 
 ```bash
-./bin/plyboard.mjs run product-readiness-qa --target demo --safety-mode draft-only --context ./AGENTS.md
+./bin/plyboard.mjs run product-readiness-qa --target demo --safety-mode draft-only --context ./examples/brand-context
 ```
 
-## CLI Commands
+## CLI
 
 ```bash
 plyboard init [--force]
@@ -33,30 +90,21 @@ plyboard approve latest --all-needs-approval [--actor operator]
 plyboard export-audit [latest|run-id|run-dir] [--out exports/my-run]
 ```
 
-## Artifact Layout
-
-Each run writes a folder under `runs/<run-id>/`:
-
-- `manifest.json`: structured action manifest
-- `audit-packet.json`: machine-readable audit packet
-- `audit-packet.md`: human-readable audit packet
-- `rollback-plan.md`: rollback notes for proposed actions
-- `broker-trace.json`: mocked host API broker calls
-- `run-log.jsonl`: run events
-- `approval-record.json`: mocked approvals, created after `plyboard approve`
-
-`export-audit` includes approval records when they exist.
-
-The latest run pointer is stored at `.plyboard/latest-run`.
-
 ## Safety Model
 
-The mocked Docker SBX runner follows the intended SBX boundary:
+Plyboard's default posture is conservative.
+
+Safe actions include draft enrichment, SEO drafts, image alt text drafts, media issue flags, publish readiness checks, storefront audits, and merchandising recommendations.
+
+Approval-required actions include product publishing, collection publishing, collection sort updates, price changes, and inventory updates.
+
+Blocked actions include media deletion, inventory decrement, production theme publish, customer email sends, payment capture, refunds, admin user creation, and webhook creation.
+
+The mocked Docker SBX runner follows the intended sandbox boundary:
 
 - Raw Shopify/API secrets are never passed into the sandbox.
 - Agents call scoped broker tools such as `shopify.product.read`.
 - The host-side broker owns credential access and returns scoped results.
-- Every proposed action is classified as `safe`, `needs_approval`, or `blocked`.
 - Blocked actions remain non-executable and are included for audit visibility.
 
 ## Shared Context
@@ -69,8 +117,17 @@ npm run plyboard -- run product-readiness-qa --context ./examples/brand-context
 
 Plyboard records context mount paths, hashes, previews, and read-only status in the manifest. It refuses obvious secret-like paths such as `.env`, `.pem`, `.key`, or files named with `secret` or `credential`.
 
-## Verify
+## Artifacts
 
-```bash
-npm test
-```
+Each run writes a folder under `runs/<run-id>/`:
+
+- `manifest.json`: structured action manifest.
+- `audit-packet.json`: machine-readable audit packet.
+- `audit-packet.md`: human-readable audit packet.
+- `rollback-plan.md`: rollback notes for proposed actions.
+- `broker-trace.json`: mocked host API broker calls.
+- `run-log.jsonl`: run events.
+- `approval-record.json`: mocked approvals, created after `plyboard approve`.
+
+The latest run pointer is stored at `.plyboard/latest-run`.
+
