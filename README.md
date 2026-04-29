@@ -6,57 +6,64 @@
   <strong>YOLO-mode AI agents for ecommerce, without blowing up production.</strong>
 </p>
 
-## What Plyboard Does
+## The Short Version
 
-Plyboard helps ecommerce brands use AI agents to get store work done safely.
+Plyboard lets ecommerce teams use AI agents to do store chores safely.
 
-You choose a job, like checking new products before launch. Plyboard reviews the work, suggests fixes, shows exactly what it wants to change, and asks before anything risky goes live.
+Pick a job, like checking new products before launch. Plyboard sends the right AI helpers to review the store, draft fixes, and show you exactly what they want to change.
 
-For a D2C brand, that means AI can help clean up product pages, check photos, improve descriptions, review collections, and prepare products for launch without silently changing your live store.
+Before anything risky goes live, you get a clear review screen:
 
-No terminal commands. No local setup. No raw store credentials sitting on someone's laptop. No surprise production changes.
+- Things that are safe.
+- Things that need your approval.
+- Things Plyboard blocked.
 
-## Why This Matters
+No terminal commands. No local setup. No store keys sitting on someone's laptop. No mystery changes to your live store.
 
-D2C brands want AI agents that can do real work: clean up catalogs, prepare launches, review storefront quality, fix missing enrichment, audit merchandising, and update commerce systems.
+## Why It Exists
 
-But useful agents often need to act like an admin using a computer. Today that can mean terminal commands, local scripts, developer tools, API credentials, and risky workflows running from someone's machine.
+AI agents are getting useful enough to help D2C brands with real store work: product launches, catalog cleanup, photo checks, product descriptions, collection reviews, and merchandising QA.
 
-That is a bad default for ecommerce operators. The learning curve is steep, and one wrong command or uncontrolled agent action can expose credentials, publish bad products, break storefront merchandising, change inventory, or touch production before anyone reviews the work.
+The catch: the most powerful agents usually need technical setup and admin-style access. That often means developer tools, secret credentials, and commands running from someone's computer.
+
+That is too much risk for normal store ops. One bad run can publish the wrong product, break a collection, expose credentials, or change live store data before anyone has checked the work.
 
 ## The Solution
 
-Plyboard gives D2C teams a safe runner for CLI-native ecommerce agents.
+Plyboard gives the AI a safe place to work and gives the operator the final say.
 
-Operators choose a prebuilt **Agent Blueprint** instead of opening a terminal. The blueprint packages the agents, tools, shared brand context, sandbox template, policy rules, approval gates, audit trail, and rollback plan for a specific commerce workflow.
+For each store job, Plyboard uses a prebuilt playbook with the right AI helpers, brand instructions, store tools, safety rules, approval steps, and rollback notes.
 
-Agents can still use powerful CLI-native workflows under the hood, but they run in isolated Docker SBX-style sandboxes. Raw Shopify and commerce API secrets stay outside the sandbox. Every proposed change becomes a structured action manifest and is classified as `safe`, `needs_approval`, or `blocked` before anything can affect production.
+The AI can inspect and draft. Plyboard decides what is safe, what needs approval, and what should be blocked. The operator reviews the plan before production changes happen.
 
 Plyboard was built as part of the OpenAI Codex Hackathon Sydney.
 
-The current milestone is a CLI product kernel: a mocked **Product Readiness QA Blueprint** that runs two ecommerce agents, produces a structured action manifest, classifies every proposed action, and writes reviewable audit artifacts.
+## Current Demo
 
-## Why Plyboard
+The demo is **Product Readiness QA**.
 
-Plyboard gives powerful agent workflows an operator-safe control surface:
+It checks whether new products are ready to publish and whether the live storefront is presenting products properly.
 
-- Agents run in isolated Docker SBX-style blueprints.
-- Retailer context is mounted read-only through shared `AGENTS.md` files or folders.
-- Raw Shopify and commerce API secrets stay outside the sandbox.
-- Proposed changes become structured manifests before execution.
-- Every action is classified as `safe`, `needs_approval`, or `blocked`.
-- Audit packets and rollback plans are generated for review.
-
-## Demo Blueprint
-
-The demo blueprint is **Product Readiness QA**.
-
-It runs two agents:
+It uses two AI helpers:
 
 - **Catalog QA Agent:** reviews draft products for missing enrichment, weak descriptions, SEO gaps, tags, variants, image alt text, photo quality, collection fit, and publish readiness.
 - **Storefront Merchandising Agent:** reviews the live storefront for product presentation, collection merchandising, product card quality, image consistency, weak positioning, and existing enrichment gaps.
 
-For the hackathon demo, the runner is mocked. The product shape is still real: sandboxed agents, scoped tool calls, policy-gated actions, shared brand context, audit output, and rollback notes.
+For the hackathon demo, store actions are mocked. The important part is the flow: run the agents, review the proposed changes, approve what is safe, and block what should not happen.
+
+## For Builders
+
+The current milestone is a CLI product kernel. Under the hood, Plyboard models CLI-native ecommerce agents running inside Docker SBX-style sandboxes.
+
+The mocked Product Readiness QA Blueprint produces a structured action manifest, classifies every proposed action as `safe`, `needs_approval`, or `blocked`, and writes reviewable audit artifacts.
+
+Plyboard's intended architecture:
+
+- Agents run in isolated blueprints.
+- Retailer context is mounted read-only through shared `AGENTS.md` files or folders.
+- Raw Shopify and commerce API secrets stay outside the sandbox.
+- Proposed changes become structured manifests before execution.
+- Audit packets and rollback plans are generated for review.
 
 ## Quick Start
 
@@ -112,42 +119,42 @@ plyboard approve latest --all-needs-approval [--actor operator]
 plyboard export-audit [latest|run-id|run-dir] [--out exports/my-run]
 ```
 
-## Safety Model
+## How Plyboard Keeps Things Safe
 
-Plyboard's default posture is conservative.
+Plyboard starts careful and stays careful.
 
-Safe actions include draft enrichment, SEO drafts, image alt text drafts, media issue flags, publish readiness checks, storefront audits, and merchandising recommendations.
+- Safe work can be drafted automatically, like product copy, SEO suggestions, image alt text, photo issue flags, storefront audits, and merchandising recommendations.
+- Risky work needs approval, like publishing products, changing collection order, updating prices, or editing inventory.
+- Dangerous work is blocked, like deleting product media, sending customer emails, capturing payments, issuing refunds, or publishing a production theme.
 
-Approval-required actions include product publishing, collection publishing, collection sort updates, price changes, and inventory updates.
-
-Blocked actions include media deletion, inventory decrement, production theme publish, customer email sends, payment capture, refunds, admin user creation, and webhook creation.
-
-The mocked Docker SBX runner follows the intended sandbox boundary:
+The demo also models the intended sandbox boundary:
 
 - Raw Shopify/API secrets are never passed into the sandbox.
-- Agents call scoped broker tools such as `shopify.product.read`.
-- The host-side broker owns credential access and returns scoped results.
+- Agents call limited store tools instead of holding reusable credentials.
+- The host side owns credential access and returns only the results the agent needs.
 - Blocked actions remain non-executable and are included for audit visibility.
 
-## Shared Context
+## Brand Context
 
-Use `--context` to mount a read-only `AGENTS.md` or folder of brand instructions:
+Plyboard can give every run the same brand instructions: tone of voice, product naming rules, SEO guidelines, image standards, merchandising preferences, and approval rules.
+
+Use `--context` to attach a read-only `AGENTS.md` or folder of brand instructions:
 
 ```bash
 npm run plyboard -- run product-readiness-qa --context ./examples/brand-context
 ```
 
-Plyboard records context mount paths, hashes, previews, and read-only status in the manifest. It refuses obvious secret-like paths such as `.env`, `.pem`, `.key`, or files named with `secret` or `credential`.
+Plyboard records which context was used for the run. It also refuses obvious secret-like paths such as `.env`, `.pem`, `.key`, or files named with `secret` or `credential`.
 
-## Artifacts
+## What Gets Saved
 
-Each run writes a folder under `runs/<run-id>/`:
+Each run saves a folder under `runs/<run-id>/`:
 
-- `manifest.json`: structured action manifest.
+- `manifest.json`: everything the agents proposed.
 - `audit-packet.json`: machine-readable audit packet.
 - `audit-packet.md`: human-readable audit packet.
-- `rollback-plan.md`: rollback notes for proposed actions.
-- `broker-trace.json`: mocked host API broker calls.
+- `rollback-plan.md`: notes for undoing approved changes.
+- `broker-trace.json`: mocked store tool calls.
 - `run-log.jsonl`: run events.
 - `approval-record.json`: mocked approvals, created after `plyboard approve`.
 
