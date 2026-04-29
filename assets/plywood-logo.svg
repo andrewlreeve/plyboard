@@ -1,19 +1,11 @@
-<svg width="960" height="240" viewBox="0 0 960 240" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Plywood</title>
-  <desc id="desc">Plywood wordmark with layered commerce boards icon</desc>
-  <rect width="960" height="240" rx="24" fill="#F7F2E8"/>
-  <g transform="translate(72 54)">
-    <path d="M24 48C24 31.431 37.431 18 54 18H164C180.569 18 194 31.431 194 48V116C194 132.569 180.569 146 164 146H54C37.431 146 24 132.569 24 116V48Z" fill="#12312B"/>
-    <path d="M48 73C48 56.431 61.431 43 78 43H188C204.569 43 218 56.431 218 73V141C218 157.569 204.569 171 188 171H78C61.431 171 48 157.569 48 141V73Z" fill="#F0B44C" stroke="#12312B" stroke-width="8"/>
-    <path d="M80 83H176" stroke="#12312B" stroke-width="10" stroke-linecap="round"/>
-    <path d="M80 112H160" stroke="#12312B" stroke-width="10" stroke-linecap="round"/>
-    <path d="M80 141H136" stroke="#12312B" stroke-width="10" stroke-linecap="round"/>
-    <circle cx="187" cy="139" r="15" fill="#D94C3D" stroke="#12312B" stroke-width="7"/>
-  </g>
-  <text x="326" y="158"
-        fill="#12312B"
-        font-family="Avenir Next, Montserrat, Trebuchet MS, sans-serif"
-        font-size="104"
-        font-weight="800"
-        letter-spacing="0">Plywood</text>
+  <desc id="desc">Layered commerce boards with an approval check mark</desc>
+  <rect x="20" y="22" width="96" height="74" rx="14" fill="#12312B"/>
+  <rect x="38" y="44" width="100" height="78" rx="14" fill="#F3B84F" stroke="#12312B" stroke-width="8"/>
+  <path d="M62 69H108" stroke="#12312B" stroke-width="8" stroke-linecap="round"/>
+  <path d="M62 89H100" stroke="#12312B" stroke-width="8" stroke-linecap="round"/>
+  <path d="M62 109H86" stroke="#12312B" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="116" cy="112" r="26" fill="#F7F2E8" stroke="#12312B" stroke-width="8"/>
+  <path d="M104 112L113 121L130 101" stroke="#2F7D57" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

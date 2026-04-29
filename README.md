@@ -1,6 +1,8 @@
 <p align="center">
-  <img src="assets/plywood-logo.svg" width="560" alt="Plywood">
+  <img src="./assets/plywood-logo.svg" width="132" alt="Plywood logo">
 </p>
+
+<h1 align="center">Plywood</h1>
 
 <p align="center">
   <strong>YOLO-mode AI agents for ecommerce, without blowing up production.</strong>
