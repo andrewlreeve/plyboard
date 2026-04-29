@@ -1,14 +1,12 @@
 <svg width="760" height="220" viewBox="0 0 760 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Plywood</title>
-  <desc id="desc">Plywood wordmark with layered commerce boards and an approval check mark</desc>
+  <desc id="desc">Plywood wordmark with layered commerce boards</desc>
   <g transform="translate(42 42)">
     <rect x="0" y="0" width="112" height="82" rx="16" fill="#12312B"/>
     <rect x="24" y="24" width="118" height="90" rx="16" fill="#F3B84F" stroke="#12312B" stroke-width="8"/>
     <path d="M52 52H106" stroke="#12312B" stroke-width="9" stroke-linecap="round"/>
     <path d="M52 76H96" stroke="#12312B" stroke-width="9" stroke-linecap="round"/>
     <path d="M52 100H82" stroke="#12312B" stroke-width="9" stroke-linecap="round"/>
-    <circle cx="118" cy="104" r="28" fill="#FFFFFF" stroke="#12312B" stroke-width="8"/>
-    <path d="M105 104L115 114L134 91" stroke="#2F7D57" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
   <text x="220" y="138"
         fill="#12312B"
