@@ -6,17 +6,39 @@
   <strong>YOLO-mode AI agents for ecommerce, without blowing up production.</strong>
 </p>
 
-Plyboard is a safe ecommerce agent runner for CLI-native workflows. It lets operators run prebuilt Agent Blueprints with the tools, policies, shared brand context, audit trail, and rollback plan needed to use powerful agents safely.
+## What Plyboard Does
+
+Plyboard helps ecommerce brands use AI agents to get store work done safely.
+
+You choose a job, like checking new products before launch. Plyboard reviews the work, suggests fixes, shows exactly what it wants to change, and asks before anything risky goes live.
+
+For a D2C brand, that means AI can help clean up product pages, check photos, improve descriptions, review collections, and prepare products for launch without silently changing your live store.
+
+No terminal commands. No local setup. No raw store credentials sitting on someone's laptop. No surprise production changes.
+
+## Why This Matters
+
+D2C brands want AI agents that can do real work: clean up catalogs, prepare launches, review storefront quality, fix missing enrichment, audit merchandising, and update commerce systems.
+
+But useful agents often need to act like an admin using a computer. Today that can mean terminal commands, local scripts, developer tools, API credentials, and risky workflows running from someone's machine.
+
+That is a bad default for ecommerce operators. The learning curve is steep, and one wrong command or uncontrolled agent action can expose credentials, publish bad products, break storefront merchandising, change inventory, or touch production before anyone reviews the work.
+
+## The Solution
+
+Plyboard gives D2C teams a safe runner for CLI-native ecommerce agents.
+
+Operators choose a prebuilt **Agent Blueprint** instead of opening a terminal. The blueprint packages the agents, tools, shared brand context, sandbox template, policy rules, approval gates, audit trail, and rollback plan for a specific commerce workflow.
+
+Agents can still use powerful CLI-native workflows under the hood, but they run in isolated Docker SBX-style sandboxes. Raw Shopify and commerce API secrets stay outside the sandbox. Every proposed change becomes a structured action manifest and is classified as `safe`, `needs_approval`, or `blocked` before anything can affect production.
+
+Plyboard was built as part of the OpenAI Codex Hackathon Sydney.
 
 The current milestone is a CLI product kernel: a mocked **Product Readiness QA Blueprint** that runs two ecommerce agents, produces a structured action manifest, classifies every proposed action, and writes reviewable audit artifacts.
 
 ## Why Plyboard
 
-The most capable agent workflows often require CLI access: Codex, MCP servers, Shopify AI Toolkit, scripts, repository tools, and other developer-oriented automation.
-
-Most ecommerce operators have never used a terminal. They should not need to install local tooling, configure credentials, wire up MCP servers, run shell commands, or guess which action might damage a live store.
-
-Plyboard gives those workflows an operator-safe control surface:
+Plyboard gives powerful agent workflows an operator-safe control surface:
 
 - Agents run in isolated Docker SBX-style blueprints.
 - Retailer context is mounted read-only through shared `AGENTS.md` files or folders.
@@ -130,4 +152,3 @@ Each run writes a folder under `runs/<run-id>/`:
 - `approval-record.json`: mocked approvals, created after `plyboard approve`.
 
 The latest run pointer is stored at `.plyboard/latest-run`.
-
