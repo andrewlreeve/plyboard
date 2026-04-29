@@ -5,7 +5,7 @@ import path from "node:path";
 export function writeRunArtifacts(manifest, workspaceRoot) {
   const runDir = path.join(workspaceRoot, "runs", manifest.run.id);
   fs.mkdirSync(runDir, { recursive: true });
-  fs.mkdirSync(path.join(workspaceRoot, ".plyboard"), { recursive: true });
+  fs.mkdirSync(path.join(workspaceRoot, ".plywood"), { recursive: true });
 
   const brokerTrace = manifest.broker_trace || [];
   const auditPacket = buildAuditPacket(manifest);
@@ -45,7 +45,7 @@ export function writeRunArtifacts(manifest, workspaceRoot) {
   fs.writeFileSync(path.join(runDir, "rollback-plan.md"), rollbackMarkdown);
   writeJson(path.join(runDir, "broker-trace.json"), brokerTrace);
   fs.writeFileSync(path.join(runDir, "run-log.jsonl"), runLog.map((entry) => JSON.stringify(entry)).join("\n"));
-  fs.writeFileSync(path.join(workspaceRoot, ".plyboard", "latest-run"), paths.run_dir);
+  fs.writeFileSync(path.join(workspaceRoot, ".plywood", "latest-run"), paths.run_dir);
 
   return { manifest: finalManifest, runDir };
 }
@@ -62,7 +62,7 @@ export function resolveManifestPath(reference = "latest", workspaceRoot) {
   const ref = reference || "latest";
 
   if (ref === "latest") {
-    const latestPath = path.join(workspaceRoot, ".plyboard", "latest-run");
+    const latestPath = path.join(workspaceRoot, ".plywood", "latest-run");
     if (!fs.existsSync(latestPath)) {
       throw new Error("No latest run found. Run a blueprint first.");
     }
@@ -238,7 +238,7 @@ function buildAuditPacket(manifest) {
 
 function renderAuditPacketMarkdown(manifest, auditPacket) {
   const lines = [
-    `# Plyboard Audit Packet`,
+    `# Plywood Audit Packet`,
     ``,
     `Run: ${manifest.run.id}`,
     `Blueprint: ${manifest.blueprint.name}`,
@@ -328,7 +328,7 @@ function renderRollbackPlanMarkdown(manifest) {
   const reversibleActions = manifest.actions.filter((action) => action.policy_result !== "blocked");
   const blockedActions = manifest.actions.filter((action) => action.policy_result === "blocked");
   const lines = [
-    `# Plyboard Rollback Plan`,
+    `# Plywood Rollback Plan`,
     ``,
     `Run: ${manifest.run.id}`,
     `Blueprint: ${manifest.blueprint.name}`,

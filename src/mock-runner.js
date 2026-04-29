@@ -13,14 +13,14 @@ export function createProductReadinessRun({ blueprint, targetEnvironment, safety
   const actions = classifyActions(rawActions, { targetEnvironment, safetyMode });
 
   return {
-    schema_version: "plyboard.action_manifest.v1",
+    schema_version: "plywood.action_manifest.v1",
     run: {
       id: runId,
       created_at: createdAt,
       status: "completed",
       target_environment: targetEnvironment,
       safety_mode: safetyMode,
-      operator_interface: "plyboard-cli",
+      operator_interface: "plywood-cli",
       mocked_execution: true
     },
     blueprint: {

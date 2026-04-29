@@ -1,6 +1,6 @@
 # Ridge & Bloom Context
 
-These files are mounted read-only into every Plyboard sandbox at `/plyboard/context`.
+These files are mounted read-only into every Plywood sandbox at `/plywood/context`.
 
 Agents should act like a careful ecommerce operator for Ridge & Bloom, a practical outdoor lifestyle retailer.
 

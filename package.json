@@ -1,14 +1,14 @@
 {
-  "name": "plyboard",
+  "name": "plywood",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Safe ecommerce agent runner CLI for sandboxed Agent Blueprints.",
   "bin": {
-    "plyboard": "./bin/plyboard.mjs"
+    "plywood": "./bin/plywood.mjs"
   },
   "scripts": {
-    "plyboard": "node ./bin/plyboard.mjs",
+    "plywood": "node ./bin/plywood.mjs",
     "smoke": "node ./scripts/smoke-test.mjs",
     "test": "node ./scripts/smoke-test.mjs"
   },

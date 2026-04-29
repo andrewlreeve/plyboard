@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_CONTEXT_DIR, DEFAULT_CONTEXT_SANDBOX_PATH, resolveContextMounts } from "./context.js";
 
-const SANDBOX_ROOT = ".plyboard/sandboxes";
+const SANDBOX_ROOT = ".plywood/sandboxes";
 
 export function createBlueprintSandbox({ blueprint, paths, flags, workspaceRoot }) {
   const agentAdapter = blueprint.runtime.agentAdapter;
@@ -44,7 +44,7 @@ export function createBlueprintSandbox({ blueprint, paths, flags, workspaceRoot 
   const shouldExecute = !dryRun && sbxAvailable;
   const createdAt = new Date().toISOString();
   const spec = {
-    schema_version: "plyboard.sandbox.v1",
+    schema_version: "plywood.sandbox.v1",
     id: `${name}-${crypto.randomBytes(2).toString("hex")}`,
     name,
     blueprint: {
@@ -99,7 +99,7 @@ export function createBlueprintSandbox({ blueprint, paths, flags, workspaceRoot 
     spec.sbx.stderr = execution.stderr;
     spec.status = execution.status === 0 ? "created" : "failed";
   } else if (!sbxAvailable) {
-    spec.sbx.reason_not_executed = "Docker SBX runtime adapter is not available on PATH. Plyboard wrote the creation plan instead.";
+    spec.sbx.reason_not_executed = "Docker SBX runtime adapter is not available on PATH. Plywood wrote the creation plan instead.";
   } else {
     spec.sbx.reason_not_executed = "Dry run requested.";
   }
@@ -121,7 +121,7 @@ export function runSandbox({ reference, flags, workspaceRoot }) {
   const sbxAvailable = commandExists("sbx");
   const command = ["sbx", "run", spec.name];
   const result = {
-    schema_version: "plyboard.sandbox_run.v1",
+    schema_version: "plywood.sandbox_run.v1",
     sandbox: {
       name: spec.name,
       blueprint: spec.blueprint,
@@ -144,14 +144,14 @@ export function runSandbox({ reference, flags, workspaceRoot }) {
 
   if (dryRun) {
     result.runtime.reason_not_executed = "Dry run requested.";
-    result.next_steps.push(`Run "plyboard run ${spec.name}" to attach to this sandbox interactively.`);
+    result.next_steps.push(`Run "plywood run ${spec.name}" to attach to this sandbox interactively.`);
     return result;
   }
 
   if (!sbxAvailable) {
     result.runtime.reason_not_executed = "Docker SBX runtime is not available on PATH.";
-    result.next_steps.push("Install Docker SBX, then rerun this same Plyboard command.");
-    result.next_steps.push(`Command: plyboard run ${spec.name}`);
+    result.next_steps.push("Install Docker SBX, then rerun this same Plywood command.");
+    result.next_steps.push(`Command: plywood run ${spec.name}`);
     return result;
   }
 
@@ -175,14 +175,14 @@ export function execSandboxCommand({ reference, commandArgs, flags, workspaceRoo
   const name = normalizeSandboxReference(reference);
   const spec = loadSandboxSpec(name, workspaceRoot);
   if (commandArgs.length === 0) {
-    throw new Error('Usage: plyboard exec [sandbox-name] -- <command>');
+    throw new Error('Usage: plywood exec [sandbox-name] -- <command>');
   }
 
   const dryRun = flags["dry-run"] === true || flags["dry-run"] === "true";
   const sbxAvailable = commandExists("sbx");
   const command = ["sbx", "exec", spec.name, ...commandArgs];
   const result = {
-    schema_version: "plyboard.sandbox_exec.v1",
+    schema_version: "plywood.sandbox_exec.v1",
     sandbox: {
       name: spec.name,
       blueprint: spec.blueprint,
@@ -205,14 +205,14 @@ export function execSandboxCommand({ reference, commandArgs, flags, workspaceRoo
 
   if (dryRun) {
     result.runtime.reason_not_executed = "Dry run requested.";
-    result.next_steps.push(`Run "plyboard exec ${spec.name} -- ${shellCommand(commandArgs)}" to execute this command.`);
+    result.next_steps.push(`Run "plywood exec ${spec.name} -- ${shellCommand(commandArgs)}" to execute this command.`);
     return result;
   }
 
   if (!sbxAvailable) {
     result.runtime.reason_not_executed = "Docker SBX runtime is not available on PATH.";
-    result.next_steps.push("Install Docker SBX, then rerun this same Plyboard command.");
-    result.next_steps.push(`Command: plyboard exec ${spec.name} -- ${shellCommand(commandArgs)}`);
+    result.next_steps.push("Install Docker SBX, then rerun this same Plywood command.");
+    result.next_steps.push(`Command: plywood exec ${spec.name} -- ${shellCommand(commandArgs)}`);
     return result;
   }
 
@@ -274,22 +274,22 @@ function commandExists(command) {
 
 function buildCreateNextSteps(name, blueprintId, sbxAvailable, dryRun) {
   if (sbxAvailable && !dryRun) {
-    return [`Run "plyboard run ${name}" to attach to the sandbox interactively.`];
+    return [`Run "plywood run ${name}" to attach to the sandbox interactively.`];
   }
 
-  const createCommand = blueprintId === name ? "plyboard create" : `plyboard create ${blueprintId} --name ${name}`;
+  const createCommand = blueprintId === name ? "plywood create" : `plywood create ${blueprintId} --name ${name}`;
 
   return [
     `Review ${SANDBOX_ROOT}/${name}/sandbox.json.`,
     "Install Docker SBX on this machine if it is not installed.",
-    `Then run "${createCommand}" and "plyboard run ${name}".`
+    `Then run "${createCommand}" and "plywood run ${name}".`
   ];
 }
 
 function loadSandboxSpec(name, workspaceRoot) {
   const specPath = path.join(workspaceRoot, SANDBOX_ROOT, name, "sandbox.json");
   if (!fs.existsSync(specPath)) {
-    throw new Error(`Sandbox "${name}" was not found. Create it first with "plyboard create --name ${name}".`);
+    throw new Error(`Sandbox "${name}" was not found. Create it first with "plywood create --name ${name}".`);
   }
   return JSON.parse(fs.readFileSync(specPath, "utf8"));
 }

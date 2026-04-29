@@ -1,28 +1,28 @@
 export function formatHelp() {
-  return `Plyboard CLI
+  return `Plywood CLI
 
 Usage:
-  plyboard init [--force]
-  plyboard create [blueprint-id] [PATH...] [--context ./notes.md] [--dry-run] [--json]
-  plyboard run [blueprint-id|sandbox-name] [--dry-run] [--json]
-  plyboard exec [blueprint-id|sandbox-name] [--target demo --safety-mode draft-only] [-- <command>]
-  plyboard context init [--force] [--json]
-  plyboard context status [--json]
-  plyboard blueprint list [--json]
-  plyboard blueprint inspect [blueprint-id] [--json]
-  plyboard review [latest|run-id|run-dir|manifest.json] [--only safe|needs_approval|blocked] [--json]
-  plyboard approve [latest|run-id|run-dir] --action act-005 [--action act-018] [--actor operator]
-  plyboard approve latest --all-needs-approval [--actor operator]
-  plyboard export-audit [latest|run-id|run-dir] [--out exports/my-run]
+  plywood init [--force]
+  plywood create [blueprint-id] [PATH...] [--context ./notes.md] [--dry-run] [--json]
+  plywood run [blueprint-id|sandbox-name] [--dry-run] [--json]
+  plywood exec [blueprint-id|sandbox-name] [--target demo --safety-mode draft-only] [-- <command>]
+  plywood context init [--force] [--json]
+  plywood context status [--json]
+  plywood blueprint list [--json]
+  plywood blueprint inspect [blueprint-id] [--json]
+  plywood review [latest|run-id|run-dir|manifest.json] [--only safe|needs_approval|blocked] [--json]
+  plywood approve [latest|run-id|run-dir] --action act-005 [--action act-018] [--actor operator]
+  plywood approve latest --all-needs-approval [--actor operator]
+  plywood export-audit [latest|run-id|run-dir] [--out exports/my-run]
 
 Examples:
-  plyboard create
-  plyboard run
-  plyboard exec --target demo --safety-mode draft-only
-  plyboard exec -- npm test
-  plyboard context status
-  plyboard review latest
-  plyboard review latest --only blocked
+  plywood create
+  plywood run
+  plywood exec --target demo --safety-mode draft-only
+  plywood exec -- npm test
+  plywood context status
+  plywood review latest
+  plywood review latest --only blocked
 `;
 }
 
@@ -35,7 +35,7 @@ export function formatCreateSandboxResult(result) {
     `Runtime available: ${result.sbx.available}`,
     `Runtime executed: ${result.sbx.execute_attempted}`,
     `Spec: ${result.artifacts.spec}`,
-    `Plyboard run command: plyboard run ${result.name}`
+    `Plywood run command: plywood run ${result.name}`
   ];
 
   if (result.context_mounts.length > 0) {
@@ -202,7 +202,7 @@ export function formatContextStatus(status) {
       `Source path: ${status.source_path}`,
       `Sandbox path: ${status.sandbox_path}`,
       `Auto-mount: ${status.auto_mount}`,
-      `Run "plyboard context init" to create starter context files.`
+      `Run "plywood context init" to create starter context files.`
     ].join("\n");
   }
 
@@ -230,7 +230,7 @@ export function formatContextStatus(status) {
 export function formatReview(manifest, { only = null } = {}) {
   const actions = only ? manifest.actions.filter((action) => action.policy_result === only) : manifest.actions;
   const lines = [
-    `Plyboard Review`,
+    `Plywood Review`,
     ``,
     `Blueprint: ${manifest.blueprint.name}`,
     `Runtime: ${manifest.blueprint.runtime} (${manifest.blueprint.runtime_mode})`,

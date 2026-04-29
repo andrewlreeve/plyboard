@@ -7,7 +7,7 @@
     "mode": "mocked",
     "agentAdapter": "codex",
     "defaultSandboxName": "product-readiness-qa",
-    "image": "ghcr.io/plyboard/blueprint/product-readiness-qa:demo",
+    "image": "ghcr.io/plywood/blueprint/product-readiness-qa:demo",
     "network": "brokered-egress-only",
     "workspace": "/workspace",
     "secretsSharedWithSandbox": false
@@ -75,7 +75,7 @@
     "allowed": true,
     "readOnly": true,
     "defaultLocalPath": "context",
-    "defaultSandboxPath": "/plyboard/context",
+    "defaultSandboxPath": "/plywood/context",
     "acceptedInputs": [
       "AGENTS.md",
       "folder"

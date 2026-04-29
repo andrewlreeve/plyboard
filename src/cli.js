@@ -98,7 +98,7 @@ export async function runCli(argv, io = process) {
     const actionIds = getRepeatedFlag(flags, "action");
     const allNeedsApproval = flags["all-needs-approval"] === true || flags["all-needs-approval"] === "true";
     if (!allNeedsApproval && actionIds.length === 0) {
-      throw new Error("Usage: plyboard approve latest --action act-005 [--action act-018]");
+      throw new Error("Usage: plywood approve latest --action act-005 [--action act-018]");
     }
 
     const approval = recordApproval(reference, workspaceRoot, {
@@ -116,7 +116,7 @@ export async function runCli(argv, io = process) {
     return;
   }
 
-  throw new Error(`Unknown command "${command}". Run plyboard --help.`);
+  throw new Error(`Unknown command "${command}". Run plywood --help.`);
 }
 
 function handleRunCommand({ reference, flags, io, workspaceRoot }) {
@@ -180,7 +180,7 @@ function handleExecCommand({ reference, commandArgs, flags, io, workspaceRoot })
 
 function ensureSandboxExists({ reference, flags, workspaceRoot }) {
   const name = reference || getDefaultBlueprintId();
-  const specPath = path.join(workspaceRoot, ".plyboard", "sandboxes", name, "sandbox.json");
+  const specPath = path.join(workspaceRoot, ".plywood", "sandboxes", name, "sandbox.json");
   if (fs.existsSync(specPath)) {
     return;
   }
@@ -254,7 +254,7 @@ function handleContextCommand({ subcommand, flags, io, workspaceRoot }) {
     return;
   }
 
-  throw new Error("Usage: plyboard context init | plyboard context status");
+  throw new Error("Usage: plywood context init | plywood context status");
 }
 
 function handleBlueprintCommand({ subcommand, maybeId, flags, io }) {
@@ -274,18 +274,18 @@ function handleBlueprintCommand({ subcommand, maybeId, flags, io }) {
     return;
   }
 
-  throw new Error("Usage: plyboard blueprint list | plyboard blueprint inspect [blueprint-id]");
+  throw new Error("Usage: plywood blueprint list | plywood blueprint inspect [blueprint-id]");
 }
 
 function initWorkspace(workspaceRoot, force) {
-  const plyboardDir = path.join(workspaceRoot, ".plyboard");
-  const configPath = path.join(plyboardDir, "config.json");
+  const plywoodDir = path.join(workspaceRoot, ".plywood");
+  const configPath = path.join(plywoodDir, "config.json");
 
-  fs.mkdirSync(plyboardDir, { recursive: true });
+  fs.mkdirSync(plywoodDir, { recursive: true });
   fs.mkdirSync(path.join(workspaceRoot, "runs"), { recursive: true });
 
   if (fs.existsSync(configPath) && !force) {
-    return "Plyboard workspace already initialized.";
+    return "Plywood workspace already initialized.";
   }
 
   const config = {
@@ -295,7 +295,7 @@ function initWorkspace(workspaceRoot, force) {
     default_safety_mode: "draft-only",
     default_context: {
       local_path: "context",
-      sandbox_path: "/plyboard/context",
+      sandbox_path: "/plywood/context",
       readonly: true,
       auto_mount: true
     },
@@ -307,7 +307,7 @@ function initWorkspace(workspaceRoot, force) {
   };
 
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
-  return `Plyboard workspace initialized at ${path.relative(workspaceRoot, plyboardDir) || ".plyboard"}.`;
+  return `Plywood workspace initialized at ${path.relative(workspaceRoot, plywoodDir) || ".plywood"}.`;
 }
 
 function normalizeOnly(value) {

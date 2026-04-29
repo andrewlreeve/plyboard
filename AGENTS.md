@@ -1,6 +1,6 @@
-# Plyboard
+# Plywood
 
-Plyboard is a safe ecommerce agent runner. It gives ecommerce operators a UI for running powerful CLI-native AI agents without touching a terminal or risking their local machine, credentials, or production store.
+Plywood is a safe ecommerce agent runner. It gives ecommerce operators a UI for running powerful CLI-native AI agents without touching a terminal or risking their local machine, credentials, or production store.
 
 ## Problem
 
@@ -10,7 +10,7 @@ Running these agents directly on a local machine also creates operational risk: 
 
 ## Product
 
-Plyboard lets retailers run prebuilt ecommerce Agent Blueprints. Each blueprint packages:
+Plywood lets retailers run prebuilt ecommerce Agent Blueprints. Each blueprint packages:
 
 - Agents and prompts
 - Commerce-specific tools
@@ -23,7 +23,7 @@ Plyboard lets retailers run prebuilt ecommerce Agent Blueprints. Each blueprint 
 - Audit trail
 - Rollback plan
 
-The operator never touches the terminal. Agents run in isolated Docker SBX sandboxes. Every proposed action is converted into a structured action manifest and classified by Plyboard as `safe`, `needs_approval`, or `blocked` before anything can affect production.
+The operator never touches the terminal. Agents run in isolated Docker SBX sandboxes. Every proposed action is converted into a structured action manifest and classified by Plywood as `safe`, `needs_approval`, or `blocked` before anything can affect production.
 
 ## Demo Scope
 
@@ -43,9 +43,9 @@ For the hackathon, mock Docker SBX/Codex execution. Present the architecture cle
 
 1. Operator chooses Product Readiness QA Blueprint.
 2. Operator selects store target and safety mode.
-3. Plyboard runs the Catalog QA Agent and Storefront Merchandising Agent in a mocked Docker SBX blueprint.
+3. Plywood runs the Catalog QA Agent and Storefront Merchandising Agent in a mocked Docker SBX blueprint.
 4. Agents return one structured action manifest.
-5. Plyboard applies the policy engine.
+5. Plywood applies the policy engine.
 6. Safe draft fixes and audit recommendations are allowed.
 7. Publishing, live merchandising changes, and production writes require approval.
 8. Destructive or risky actions are blocked.
@@ -116,11 +116,11 @@ The app should show:
 
 ## Product Feel
 
-Plyboard should feel like a serious commerce operations console, not a marketing page. The first screen should be the usable workflow, not a landing page. Prioritize clarity, reviewability, safety, and confidence. Use rich mocked data. Do not overbuild real integrations for the demo.
+Plywood should feel like a serious commerce operations console, not a marketing page. The first screen should be the usable workflow, not a landing page. Prioritize clarity, reviewability, safety, and confidence. Use rich mocked data. Do not overbuild real integrations for the demo.
 
 ## Shared Context Mounts
 
-Plyboard should support mounting shared agent context into a blueprint run. The default injected context folder is the top-level `context/` directory in the Plyboard workspace. When it exists, it is mounted read-only into the sandbox at `/plyboard/context`.
+Plywood should support mounting shared agent context into a blueprint run. The default injected context folder is the top-level `context/` directory in the Plywood workspace. When it exists, it is mounted read-only into the sandbox at `/plywood/context`.
 
 This can include a shared `AGENTS.md` file and/or other context and instruction files, such as:
 
@@ -135,32 +135,32 @@ This can include a shared `AGENTS.md` file and/or other context and instruction 
 
 The mounted context is read-only inside the sandbox and should be treated as run-time instruction context for the agents. It must be visible in the review UI so the operator can understand which brand or operational instructions influenced the manifest.
 
-`.plyboard/` is reserved for internal runtime state such as config, latest-run pointers, and caches. Do not mount `.plyboard/` into the sandbox as shared context.
+`.plywood/` is reserved for internal runtime state such as config, latest-run pointers, and caches. Do not mount `.plywood/` into the sandbox as shared context.
 
 ## Sandbox Creation And Execution
 
-Plyboard should create sandboxes from blueprints. The first concrete command is:
+Plywood should create sandboxes from blueprints. The first concrete command is:
 
 ```bash
-plyboard create
+plywood create
 ```
 
-With no blueprint id, Plyboard loads the default blueprint from `blueprint/default.json`. The blueprint file owns the underlying runtime agent adapter. This creates a sandbox plan using the current workspace as the writable SBX workspace and automatically injects the default `context/` folder as a read-only workspace.
+With no blueprint id, Plywood loads the default blueprint from `blueprint/default.json`. The blueprint file owns the underlying runtime agent adapter. This creates a sandbox plan using the current workspace as the writable SBX workspace and automatically injects the default `context/` folder as a read-only workspace.
 
-Plyboard should own the full operator flow. Operators should not need to run `sbx` directly. Follow the SBX command model:
+Plywood should own the full operator flow. Operators should not need to run `sbx` directly. Follow the SBX command model:
 
 ```bash
-plyboard run
-plyboard exec
+plywood run
+plywood exec
 ```
 
-`plyboard run` starts or attaches to an interactive sandbox session. `plyboard exec` executes a non-interactive command or blueprint workflow inside the sandbox.
+`plywood run` starts or attaches to an interactive sandbox session. `plywood exec` executes a non-interactive command or blueprint workflow inside the sandbox.
 
-Plyboard may add opinions on top of the SBX pattern, including default context injection, SBX secrets policy recording, generated sandbox specs, and safety/audit metadata. Raw API secrets must still stay outside the sandbox.
+Plywood may add opinions on top of the SBX pattern, including default context injection, SBX secrets policy recording, generated sandbox specs, and safety/audit metadata. Raw API secrets must still stay outside the sandbox.
 
 ## SBX Secrets Policy
 
-Plyboard should follow the SBX standard: do not share Shopify API secrets, app credentials, customer credentials, or production tokens directly with the sandbox.
+Plywood should follow the SBX standard: do not share Shopify API secrets, app credentials, customer credentials, or production tokens directly with the sandbox.
 
 Agents should call scoped tools or API broker endpoints instead of receiving raw secrets. The host-side broker owns credential access, injects credentials only into outbound commerce API calls, applies allowlists and policy checks, and returns scoped responses to the sandbox. The sandbox should receive tool results and manifest data, not reusable API secrets.
 

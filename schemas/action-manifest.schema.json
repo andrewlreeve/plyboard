@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://plyboard.local/schemas/action-manifest.schema.json",
-  "title": "Plyboard Action Manifest",
+  "$id": "https://plywood.local/schemas/action-manifest.schema.json",
+  "title": "Plywood Action Manifest",
   "type": "object",
   "required": [
     "schema_version",
@@ -16,7 +16,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "plyboard.action_manifest.v1"
+      "const": "plywood.action_manifest.v1"
     },
     "run": {
       "type": "object",

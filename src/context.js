@@ -3,8 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const DEFAULT_CONTEXT_DIR = "context";
-export const DEFAULT_CONTEXT_SANDBOX_PATH = "/plyboard/context";
-const EXTRA_CONTEXT_SANDBOX_ROOT = "/plyboard/context/extra";
+export const DEFAULT_CONTEXT_SANDBOX_PATH = "/plywood/context";
+const EXTRA_CONTEXT_SANDBOX_ROOT = "/plywood/context/extra";
 
 const SECRET_FILE_PATTERNS = [
   /^\.env($|\.)/i,
@@ -17,7 +17,7 @@ const SECRET_FILE_PATTERNS = [
   /\.pfx$/i
 ];
 
-const IGNORED_DIRS = new Set([".git", "node_modules", "runs", ".plyboard", "exports"]);
+const IGNORED_DIRS = new Set([".git", "node_modules", "runs", ".plywood", "exports"]);
 
 export function resolveContextMounts(inputs, workspaceRoot, { includeDefault = false } = {}) {
   const mounts = [];
@@ -239,7 +239,7 @@ function previewText(buffer) {
 function starterAgentsMarkdown() {
   return `# Brand Context
 
-These files are mounted read-only into every Plyboard sandbox at ${DEFAULT_CONTEXT_SANDBOX_PATH}.
+These files are mounted read-only into every Plywood sandbox at ${DEFAULT_CONTEXT_SANDBOX_PATH}.
 
 ## How Agents Should Act
 

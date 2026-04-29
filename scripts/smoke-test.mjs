@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const cli = path.join(root, "bin", "plyboard.mjs");
+const cli = path.join(root, "bin", "plywood.mjs");
 
 function run(args) {
   return execFileSync(process.execPath, [cli, ...args], {
@@ -24,7 +24,7 @@ assert.match(inspectOutput, /Secrets shared with sandbox: false/);
 const contextStatusOutput = run(["context", "status"]);
 assert.match(contextStatusOutput, /Default context: ready/);
 assert.match(contextStatusOutput, /context/);
-assert.match(contextStatusOutput, /\/plyboard\/context/);
+assert.match(contextStatusOutput, /\/plywood\/context/);
 
 const createSandboxOutput = run(["create", "--dry-run", "--json"]);
 const createSandbox = JSON.parse(createSandboxOutput);
@@ -41,7 +41,7 @@ assert.ok(
     (mount) =>
       mount.source_path === "context" &&
       mount.sbx_workspace_arg.endsWith("/context:ro") &&
-      mount.logical_sandbox_path === "/plyboard/context"
+      mount.logical_sandbox_path === "/plywood/context"
   )
 );
 assert.ok(fs.existsSync(path.join(root, createSandbox.artifacts.spec)));
@@ -54,7 +54,7 @@ assert.equal(runSandbox.sandbox.blueprint.id, "product-readiness-qa");
 assert.equal(runSandbox.interactive, true);
 assert.equal(runSandbox.secrets_shared_with_sandbox, false);
 assert.equal(runSandbox.runtime.execute_attempted, false);
-assert.ok(runSandbox.next_steps.some((step) => step.includes("plyboard run")));
+assert.ok(runSandbox.next_steps.some((step) => step.includes("plywood run")));
 
 const commandExecOutput = run(["exec", "--dry-run", "--json", "--", "npm", "test"]);
 const commandExec = JSON.parse(commandExecOutput);
@@ -75,7 +75,7 @@ const runOutput = run([
 assert.match(runOutput, /Run created:/);
 assert.match(runOutput, /Policy:/);
 
-const latestRunDir = fs.readFileSync(path.join(root, ".plyboard", "latest-run"), "utf8").trim();
+const latestRunDir = fs.readFileSync(path.join(root, ".plywood", "latest-run"), "utf8").trim();
 const manifest = JSON.parse(fs.readFileSync(path.join(root, latestRunDir, "manifest.json"), "utf8"));
 
 assert.equal(manifest.blueprint.id, "product-readiness-qa");
@@ -90,7 +90,7 @@ assert.ok(
   manifest.sbx.mounted_context.some(
     (mount) =>
       mount.source_path === "context" &&
-      mount.sandbox_path === "/plyboard/context" &&
+      mount.sandbox_path === "/plywood/context" &&
       mount.mount_role === "default"
   )
 );
@@ -98,7 +98,7 @@ assert.ok(
   manifest.sbx.mounted_context.some(
     (mount) =>
       mount.source_path === "examples/brand-context" &&
-      mount.sandbox_path === "/plyboard/context/extra/brand-context" &&
+      mount.sandbox_path === "/plywood/context/extra/brand-context" &&
       mount.mount_role === "extra"
   )
 );
