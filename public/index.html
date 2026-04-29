@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plywood Operator Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="hero fade-up">
+        <div>
+          <p class="eyebrow">Plywood</p>
+          <h1>Operator Console</h1>
+          <p class="hero-copy">
+            Start a store review, see what the agents found, and approve only the changes you want to allow.
+          </p>
+        </div>
+      </header>
+
+      <nav class="page-nav fade-up" style="animation-delay: 40ms">
+        <button id="view-console-button" class="nav-button active" type="button">Operator Console</button>
+        <button id="view-context-button" class="nav-button" type="button">Brand Context</button>
+      </nav>
+
+      <section id="console-view" class="page-view active">
+        <main class="layout">
+          <aside class="panel controls fade-up" style="animation-delay: 80ms">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Run</p>
+                <h2>Start Review</h2>
+              </div>
+              <button id="refresh-button" class="ghost-button" type="button">Refresh</button>
+            </div>
+
+            <form id="run-form" class="stack">
+              <label class="field">
+                <span>Blueprint</span>
+                <select id="blueprint-select" name="blueprintId"></select>
+              </label>
+
+              <label class="field">
+                <span>Target Environment</span>
+                <select id="target-select" name="target">
+                  <option value="demo">Demo store</option>
+                  <option value="dev">Development store</option>
+                  <option value="staging">Staging store</option>
+                  <option value="production">Production store</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Approval Setting</span>
+                <select id="safety-select" name="safetyMode">
+                  <option value="read-only">Review only</option>
+                  <option value="draft-only" selected>Allow draft updates</option>
+                  <option value="staging-write">Allow staging updates</option>
+                  <option value="production-requires-approval">Require approval for production changes</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Notes For This Review</span>
+                <textarea
+                  id="context-input"
+                  name="contextPaths"
+                  rows="4"
+                  placeholder="Example: Focus on new summer arrivals, keep the tone practical, and flag anything that should not go live yet."
+                ></textarea>
+              </label>
+
+              <button id="run-button" class="primary-button" type="submit">Run Blueprint</button>
+            </form>
+
+            <section class="subpanel">
+              <div class="subpanel-head">
+                <h3>Operator</h3>
+                <span class="pill neutral">Who is approving</span>
+              </div>
+              <div class="stack compact">
+                <label class="field">
+                  <span>Actor</span>
+                  <input id="actor-input" type="text" value="gui-operator" />
+                </label>
+                <label class="field">
+                  <span>Review Note</span>
+                  <textarea id="approval-note-input" rows="3" placeholder="Approved after review"></textarea>
+                </label>
+              </div>
+            </section>
+
+            <section class="subpanel">
+              <div class="subpanel-head">
+                <h3>Shared Instructions</h3>
+                <span id="context-status-pill" class="pill neutral">Checking</span>
+              </div>
+              <div id="context-summary" class="mini-list"></div>
+            </section>
+
+            <section class="subpanel">
+              <div class="subpanel-head">
+                <h3>Activity</h3>
+                <span id="activity-state" class="pill neutral">Idle</span>
+              </div>
+              <ol id="activity-log" class="activity-log"></ol>
+            </section>
+          </aside>
+
+          <section class="content">
+            <div class="stats-grid fade-up" style="animation-delay: 140ms">
+              <article class="stat-card">
+                <span class="stat-label">Review</span>
+                <strong id="stat-blueprint">Waiting</strong>
+                <span id="stat-runtime" class="stat-meta">No blueprint loaded</span>
+              </article>
+              <article class="stat-card">
+                <span class="stat-label">Agents</span>
+                <strong id="stat-agents">0 / 0</strong>
+                <span class="stat-meta">Completed</span>
+              </article>
+              <article class="stat-card stat-card-safe">
+                <span class="stat-label">Safe</span>
+                <strong id="stat-safe">0</strong>
+                <span class="stat-meta">Draft or audit actions</span>
+              </article>
+              <article class="stat-card stat-card-approval">
+                <span class="stat-label">Needs Approval</span>
+                <strong id="stat-approval">0</strong>
+                <span class="stat-meta">Operator gate</span>
+              </article>
+              <article class="stat-card stat-card-blocked">
+                <span class="stat-label">Blocked</span>
+                <strong id="stat-blocked">0</strong>
+                <span class="stat-meta">Not executable</span>
+              </article>
+            </div>
+
+            <section class="panel summary fade-up" style="animation-delay: 220ms">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Summary</p>
+                  <h2 id="run-title">No run loaded</h2>
+                </div>
+                <span id="run-status" class="pill neutral">Awaiting run</span>
+              </div>
+
+              <div id="run-metadata" class="summary-grid"></div>
+
+              <div class="detail-rail">
+                <section class="info-block">
+                  <div class="subpanel-head">
+                    <h3>Agents In This Run</h3>
+                    <span id="agent-count" class="pill neutral">0 agents</span>
+                  </div>
+                  <div id="agent-list" class="chip-list"></div>
+                </section>
+
+                <section class="info-block">
+                  <div class="subpanel-head">
+                    <h3>Instructions Used</h3>
+                    <span id="mount-count" class="pill neutral">0 files</span>
+                  </div>
+                  <p id="mount-summary" class="instruction-summary"></p>
+                  <div id="mount-list" class="simple-tag-list"></div>
+                </section>
+              </div>
+
+              <div class="toolbar">
+                <div id="filter-group" class="segmented">
+                  <button class="segment active" data-filter="all" type="button">All</button>
+                  <button class="segment" data-filter="safe" type="button">Safe</button>
+                  <button class="segment" data-filter="needs_approval" type="button">Needs Approval</button>
+                  <button class="segment" data-filter="blocked" type="button">Blocked</button>
+                </div>
+
+                <div class="toolbar-actions">
+                  <button id="approve-button" class="secondary-button" type="button">Approve Selected</button>
+                  <button id="approve-all-button" class="secondary-button" type="button">Approve All Requiring Review</button>
+                  <button id="export-button" class="ghost-button" type="button">Export Review Packet</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="review-grid">
+              <article class="panel fade-up" style="animation-delay: 280ms">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Findings</p>
+                    <h2>Product QA</h2>
+                  </div>
+                  <span id="product-count" class="pill neutral">0 products</span>
+                </div>
+                <div id="product-findings" class="findings-list empty-state">Run a blueprint to inspect findings.</div>
+              </article>
+
+              <article class="panel fade-up" style="animation-delay: 320ms">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Findings</p>
+                    <h2>Storefront Merchandising</h2>
+                  </div>
+                  <span id="storefront-count" class="pill neutral">0 audits</span>
+                </div>
+                <div id="storefront-findings" class="findings-list empty-state">No storefront audit yet.</div>
+              </article>
+            </section>
+
+            <section class="panel actions-panel fade-up" style="animation-delay: 360ms">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Recommended Changes</p>
+                  <h2>Actions To Review</h2>
+                </div>
+                <span id="action-count" class="pill neutral">0 actions</span>
+              </div>
+              <div id="actions-list" class="actions-list empty-state">Actions will appear after a run completes.</div>
+            </section>
+          </section>
+        </main>
+      </section>
+
+      <section id="context-view" class="page-view">
+        <div class="context-dashboard fade-up" style="animation-delay: 80ms">
+          <section class="panel context-sidebar">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Agent Instructions</p>
+                <h2>Brand Guidance</h2>
+              </div>
+              <span id="context-file-count" class="pill neutral">0 files</span>
+            </div>
+
+            <p class="context-note">
+              Every agent uses these instructions when reviewing your catalog and storefront. Edit your brand voice,
+              merchandising standards, SEO guidance, and operating rules here so each run follows the same direction.
+            </p>
+
+            <div class="context-create-row">
+              <input id="new-context-file-input" type="text" placeholder="brand-voice.md" />
+              <button id="new-context-file-button" class="secondary-button" type="button">Add File</button>
+            </div>
+
+            <div id="context-file-list" class="context-file-list empty-state">Loading instruction files.</div>
+          </section>
+
+          <section class="panel context-editor-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Editor</p>
+                <h2 id="context-editor-title">Choose a file</h2>
+              </div>
+              <span id="context-save-state" class="pill neutral">Ready</span>
+            </div>
+
+            <div id="context-editor-meta" class="summary-grid context-meta-grid"></div>
+
+            <label class="field context-editor-field">
+              <span>Instructions</span>
+              <textarea id="context-editor" rows="22" placeholder="Choose or create an instruction file to start editing."></textarea>
+            </label>
+
+            <div class="toolbar">
+              <div class="toolbar-actions">
+                <button id="save-context-button" class="primary-button" type="button">Save Instructions</button>
+                <button id="reset-context-button" class="ghost-button" type="button">Discard Changes</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <template id="finding-template">
+      <details class="finding-card">
+        <summary>
+          <div>
+            <strong class="finding-title"></strong>
+            <p class="finding-summary"></p>
+          </div>
+          <span class="pill finding-severity"></span>
+        </summary>
+        <ul class="check-list"></ul>
+      </details>
+    </template>
+
+    <template id="action-template">
+      <article class="action-card">
+        <label class="action-select">
+          <input class="action-checkbox" type="checkbox" />
+          <span class="checkbox-shell"></span>
+        </label>
+        <div class="action-body">
+          <div class="action-head">
+            <div>
+              <div class="action-title-row">
+                <span class="action-id"></span>
+                <h3 class="action-type"></h3>
+              </div>
+              <p class="action-resource"></p>
+            </div>
+            <div class="action-badges">
+              <span class="pill action-policy"></span>
+              <span class="pill action-risk"></span>
+            </div>
+          </div>
+          <div class="action-meta"></div>
+          <div class="action-copy-grid">
+            <div>
+              <span class="copy-label">Before</span>
+              <p class="action-before"></p>
+            </div>
+            <div>
+              <span class="copy-label">After</span>
+              <p class="action-after"></p>
+            </div>
+          </div>
+          <div class="action-footer">
+            <p class="action-reasoning"></p>
+            <p class="action-rollback"></p>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

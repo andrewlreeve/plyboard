@@ -8,8 +8,10 @@
     "plywood": "./bin/plywood.mjs"
   },
   "scripts": {
+    "dev": "node ./server.mjs",
     "plywood": "node ./bin/plywood.mjs",
     "smoke": "node ./scripts/smoke-test.mjs",
+    "start": "node ./server.mjs",
     "test": "node ./scripts/smoke-test.mjs"
   },
   "engines": {
