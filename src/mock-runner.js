@@ -57,6 +57,8 @@ export function createProductReadinessRun({ blueprint, targetEnvironment, safety
       mounted_context: contextMounts.map((mount) => ({
         type: mount.type,
         source_path: mount.source_path,
+        sandbox_path: mount.sandbox_path,
+        mount_role: mount.mount_role,
         readonly: mount.readonly,
         sha256: mount.sha256,
         file_count: mount.file_count ?? 1,
@@ -64,6 +66,7 @@ export function createProductReadinessRun({ blueprint, targetEnvironment, safety
         files: mount.files
           ? mount.files.map((file) => ({
               relative_path: file.relative_path,
+              sandbox_path: file.sandbox_path,
               sha256: file.sha256,
               preview: file.preview
             }))

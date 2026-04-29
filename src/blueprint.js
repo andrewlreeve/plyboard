@@ -2,15 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { packageRoot } from "./paths.js";
 
-const blueprintsRoot = path.join(packageRoot, "blueprints");
+const blueprintRoot = path.join(packageRoot, "blueprint");
+const defaultBlueprintPath = path.join(blueprintRoot, "default.json");
 
 export function listBlueprints() {
-  if (!fs.existsSync(blueprintsRoot)) {
+  if (!fs.existsSync(blueprintRoot)) {
     return [];
   }
 
   return fs
-    .readdirSync(blueprintsRoot, { withFileTypes: true })
+    .readdirSync(blueprintRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => loadBlueprint(entry.name))
     .filter(Boolean)
@@ -18,7 +19,7 @@ export function listBlueprints() {
 }
 
 export function loadBlueprint(id) {
-  const blueprintPath = path.join(blueprintsRoot, id, "blueprint.json");
+  const blueprintPath = path.join(blueprintRoot, id, "blueprint.json");
   if (!fs.existsSync(blueprintPath)) {
     return null;
   }
@@ -28,6 +29,23 @@ export function loadBlueprint(id) {
     ...JSON.parse(raw),
     path: blueprintPath
   };
+}
+
+export function getDefaultBlueprintId() {
+  if (!fs.existsSync(defaultBlueprintPath)) {
+    throw new Error("Default blueprint is not configured. Expected blueprint/default.json.");
+  }
+
+  const config = JSON.parse(fs.readFileSync(defaultBlueprintPath, "utf8"));
+  if (!config.defaultBlueprint) {
+    throw new Error("Default blueprint config must include defaultBlueprint.");
+  }
+
+  return config.defaultBlueprint;
+}
+
+export function requireDefaultBlueprint() {
+  return requireBlueprint(getDefaultBlueprintId());
 }
 
 export function requireBlueprint(id) {

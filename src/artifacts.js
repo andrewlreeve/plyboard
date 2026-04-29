@@ -267,7 +267,9 @@ function renderAuditPacketMarkdown(manifest, auditPacket) {
     lines.push(`- None`);
   } else {
     for (const mount of manifest.sbx.mounted_context) {
-      lines.push(`- ${mount.source_path} (${mount.type}, read-only, sha256 ${mount.sha256})`);
+      lines.push(
+        `- ${mount.source_path} -> ${mount.sandbox_path} (${mount.mount_role}, ${mount.type}, read-only, sha256 ${mount.sha256})`
+      );
     }
   }
 

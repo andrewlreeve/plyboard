@@ -5,7 +5,9 @@
   "runtime": {
     "name": "Docker SBX",
     "mode": "mocked",
-    "image": "ghcr.io/plyboard/blueprints/product-readiness-qa:demo",
+    "agentAdapter": "codex",
+    "defaultSandboxName": "product-readiness-qa",
+    "image": "ghcr.io/plyboard/blueprint/product-readiness-qa:demo",
     "network": "brokered-egress-only",
     "workspace": "/workspace",
     "secretsSharedWithSandbox": false
@@ -72,6 +74,8 @@
   "contextMounts": {
     "allowed": true,
     "readOnly": true,
+    "defaultLocalPath": "context",
+    "defaultSandboxPath": "/plyboard/context",
     "acceptedInputs": [
       "AGENTS.md",
       "folder"

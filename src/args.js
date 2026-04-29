@@ -19,12 +19,13 @@ const STORE_TARGETS = new Set(["demo", "dev", "staging", "production"]);
 export function parseArgs(argv) {
   const positionals = [];
   const flags = {};
+  let passthrough = [];
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
 
     if (token === "--") {
-      positionals.push(...argv.slice(index + 1));
+      passthrough = argv.slice(index + 1);
       break;
     }
 
@@ -55,7 +56,7 @@ export function parseArgs(argv) {
     }
   }
 
-  return { positionals, flags };
+  return { positionals, flags, passthrough };
 }
 
 export function getRepeatedFlag(flags, name) {

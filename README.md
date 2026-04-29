@@ -18,7 +18,7 @@ Before anything risky goes live, you get a clear review screen:
 - Things that need your approval.
 - Things Plyboard blocked.
 
-No terminal commands. No local setup. No store keys sitting on someone's laptop. No mystery changes to your live store.
+No terminal commands for store operators. No local setup. No store keys sitting on someone's laptop. No mystery changes to your live store.
 
 ## Why It Exists
 
@@ -32,7 +32,7 @@ That is too much risk for normal store ops. One bad run can publish the wrong pr
 
 Plyboard gives the AI a safe place to work and gives the operator the final say.
 
-For each store job, Plyboard uses a prebuilt playbook with the right AI helpers, brand instructions, store tools, safety rules, approval steps, and rollback notes.
+For each store job, Plyboard uses a prebuilt blueprint with the right AI helpers, brand instructions, store tools, safety rules, approval steps, and rollback notes.
 
 The AI can inspect and draft. Plyboard decides what is safe, what needs approval, and what should be blocked. The operator reviews the plan before production changes happen.
 
@@ -60,7 +60,7 @@ The mocked Product Readiness QA Blueprint produces a structured action manifest,
 Plyboard's intended architecture:
 
 - Agents run in isolated blueprints.
-- Retailer context is mounted read-only through shared `AGENTS.md` files or folders.
+- Retailer context is mounted read-only from `context/`.
 - Raw Shopify and commerce API secrets stay outside the sandbox.
 - Proposed changes become structured manifests before execution.
 - Audit packets and rollback plans are generated for review.
@@ -76,13 +76,21 @@ List and inspect the available blueprint:
 
 ```bash
 npm run plyboard -- blueprint list
-npm run plyboard -- blueprint inspect product-readiness-qa
+npm run plyboard -- blueprint inspect
 ```
 
-Run the demo with shared brand context:
+Check the shared context and create the default sandbox plan:
 
 ```bash
-npm run plyboard -- run product-readiness-qa --target demo --safety-mode draft-only --context ./examples/brand-context
+npm run plyboard -- context status
+npm run plyboard -- create --dry-run
+```
+
+Use SBX-style semantics through Plyboard:
+
+```bash
+npm run plyboard -- run --dry-run
+npm run plyboard -- exec --target demo --safety-mode draft-only
 ```
 
 Review the latest manifest:
@@ -103,21 +111,35 @@ npm run plyboard -- export-audit latest
 You can also run the executable directly:
 
 ```bash
-./bin/plyboard.mjs run product-readiness-qa --target demo --safety-mode draft-only --context ./examples/brand-context
+./bin/plyboard.mjs exec --target demo --safety-mode draft-only
 ```
 
 ## CLI
 
 ```bash
 plyboard init [--force]
+plyboard create [blueprint-id] [PATH...] [--context ./notes.md] [--dry-run] [--json]
+plyboard run [blueprint-id|sandbox-name] [--dry-run] [--json]
+plyboard exec [blueprint-id|sandbox-name] [--target demo --safety-mode draft-only] [-- <command>]
+plyboard context init [--force] [--json]
+plyboard context status [--json]
 plyboard blueprint list [--json]
-plyboard blueprint inspect <blueprint-id> [--json]
-plyboard run <blueprint-id> --target demo --safety-mode draft-only [--context ./AGENTS.md]
+plyboard blueprint inspect [blueprint-id] [--json]
 plyboard review [latest|run-id|run-dir|manifest.json] [--only safe|needs_approval|blocked] [--json]
 plyboard approve [latest|run-id|run-dir] --action act-005 [--action act-018] [--actor operator]
 plyboard approve latest --all-needs-approval [--actor operator]
 plyboard export-audit [latest|run-id|run-dir] [--out exports/my-run]
 ```
+
+## Command Model
+
+Plyboard follows the SBX command model while keeping SBX behind Plyboard:
+
+- `create` prepares a sandbox from a blueprint.
+- `run` starts or attaches to the sandbox interactively.
+- `exec` runs a non-interactive command or blueprint workflow.
+
+With no blueprint id, Plyboard reads `blueprint/default.json` and uses the default blueprint.
 
 ## How Plyboard Keeps Things Safe
 
@@ -136,19 +158,70 @@ The demo also models the intended sandbox boundary:
 
 ## Brand Context
 
-Plyboard can give every run the same brand instructions: tone of voice, product naming rules, SEO guidelines, image standards, merchandising preferences, and approval rules.
+Plyboard auto-mounts the top-level `context/` folder into every sandbox and workflow execution when it exists.
 
-Use `--context` to attach a read-only `AGENTS.md` or folder of brand instructions:
+The mount contract:
+
+- Local path: `./context`
+- Sandbox path: `/plyboard/context`
+- Mode: read-only
+- Secrets: forbidden
+
+Use `context init` to create starter files in a new workspace:
 
 ```bash
-npm run plyboard -- run product-readiness-qa --context ./examples/brand-context
+npm run plyboard -- context init
 ```
 
-Plyboard records which context was used for the run. It also refuses obvious secret-like paths such as `.env`, `.pem`, `.key`, or files named with `secret` or `credential`.
+Use `--context` for one-off extra files or folders. Extra mounts are placed under `/plyboard/context/extra/...` in the manifest:
+
+```bash
+npm run plyboard -- exec --context ./examples/brand-context
+```
+
+Plyboard records context mount paths, sandbox paths, hashes, previews, and read-only status in the manifest. It refuses obvious secret-like paths such as `.env`, `.pem`, `.key`, or files named with `secret` or `credential`.
+
+## Sandbox Creation
+
+Plyboard creates sandboxes from blueprint definitions:
+
+```bash
+npm run plyboard -- create
+```
+
+With no blueprint id, Plyboard reads `blueprint/default.json` and uses that blueprint. The blueprint file defines the underlying runtime agent adapter. By default, Plyboard uses the current workspace as the writable sandbox workspace and injects `./context` as a read-only workspace.
+
+The operator should not call the runtime directly. Plyboard owns sandbox creation and startup.
+
+If the Docker SBX runtime is available, Plyboard attempts to create the sandbox through its runtime adapter. If it is not available, Plyboard writes a creation plan to `.plyboard/sandboxes/<name>/sandbox.json`.
+
+Use `--dry-run` to always write the plan without executing SBX:
+
+```bash
+npm run plyboard -- create --dry-run
+```
+
+Start or attach to the sandbox interactively through Plyboard:
+
+```bash
+npm run plyboard -- run
+```
+
+Run the blueprint workflow non-interactively through Plyboard:
+
+```bash
+npm run plyboard -- exec --target demo --safety-mode draft-only
+```
+
+Run an arbitrary command inside the sandbox through Plyboard:
+
+```bash
+npm run plyboard -- exec -- npm test
+```
 
 ## What Gets Saved
 
-Each run saves a folder under `runs/<run-id>/`:
+Each blueprint workflow execution saves a folder under `runs/<run-id>/`:
 
 - `manifest.json`: everything the agents proposed.
 - `audit-packet.json`: machine-readable audit packet.

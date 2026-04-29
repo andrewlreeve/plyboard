@@ -120,7 +120,9 @@ Plyboard should feel like a serious commerce operations console, not a marketing
 
 ## Shared Context Mounts
 
-Plyboard should support mounting shared agent context into a blueprint run. This can be a shared `AGENTS.md` file and/or a folder of context and instructions, such as:
+Plyboard should support mounting shared agent context into a blueprint run. The default injected context folder is the top-level `context/` directory in the Plyboard workspace. When it exists, it is mounted read-only into the sandbox at `/plyboard/context`.
+
+This can include a shared `AGENTS.md` file and/or other context and instruction files, such as:
 
 - Brand voice and positioning
 - Product taxonomy rules
@@ -132,6 +134,29 @@ Plyboard should support mounting shared agent context into a blueprint run. This
 - How agents should act for this retailer
 
 The mounted context is read-only inside the sandbox and should be treated as run-time instruction context for the agents. It must be visible in the review UI so the operator can understand which brand or operational instructions influenced the manifest.
+
+`.plyboard/` is reserved for internal runtime state such as config, latest-run pointers, and caches. Do not mount `.plyboard/` into the sandbox as shared context.
+
+## Sandbox Creation And Execution
+
+Plyboard should create sandboxes from blueprints. The first concrete command is:
+
+```bash
+plyboard create
+```
+
+With no blueprint id, Plyboard loads the default blueprint from `blueprint/default.json`. The blueprint file owns the underlying runtime agent adapter. This creates a sandbox plan using the current workspace as the writable SBX workspace and automatically injects the default `context/` folder as a read-only workspace.
+
+Plyboard should own the full operator flow. Operators should not need to run `sbx` directly. Follow the SBX command model:
+
+```bash
+plyboard run
+plyboard exec
+```
+
+`plyboard run` starts or attaches to an interactive sandbox session. `plyboard exec` executes a non-interactive command or blueprint workflow inside the sandbox.
+
+Plyboard may add opinions on top of the SBX pattern, including default context injection, SBX secrets policy recording, generated sandbox specs, and safety/audit metadata. Raw API secrets must still stay outside the sandbox.
 
 ## SBX Secrets Policy
 

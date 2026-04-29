@@ -2,6 +2,10 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+export const DEFAULT_CONTEXT_DIR = "context";
+export const DEFAULT_CONTEXT_SANDBOX_PATH = "/plyboard/context";
+const EXTRA_CONTEXT_SANDBOX_ROOT = "/plyboard/context/extra";
+
 const SECRET_FILE_PATTERNS = [
   /^\.env($|\.)/i,
   /secret/i,
@@ -15,11 +19,97 @@ const SECRET_FILE_PATTERNS = [
 
 const IGNORED_DIRS = new Set([".git", "node_modules", "runs", ".plyboard", "exports"]);
 
-export function resolveContextMounts(inputs, workspaceRoot) {
-  return inputs.map((input) => resolveContextMount(input, workspaceRoot));
+export function resolveContextMounts(inputs, workspaceRoot, { includeDefault = false } = {}) {
+  const mounts = [];
+  const seen = new Set();
+
+  if (includeDefault && defaultContextExists(workspaceRoot)) {
+    const mount = resolveContextMount(DEFAULT_CONTEXT_DIR, workspaceRoot, {
+      mountRole: "default",
+      sandboxPath: DEFAULT_CONTEXT_SANDBOX_PATH
+    });
+    mounts.push(mount);
+    seen.add(mount.absolute_path);
+  }
+
+  inputs.forEach((input, index) => {
+    const mount = resolveContextMount(input, workspaceRoot, {
+      mountRole: "extra",
+      sandboxPath: buildExtraSandboxPath(input, workspaceRoot, index)
+    });
+    if (!seen.has(mount.absolute_path)) {
+      mounts.push(mount);
+      seen.add(mount.absolute_path);
+    }
+  });
+
+  return mounts;
 }
 
-function resolveContextMount(input, workspaceRoot) {
+export function defaultContextExists(workspaceRoot) {
+  return fs.existsSync(path.join(workspaceRoot, DEFAULT_CONTEXT_DIR));
+}
+
+export function getContextStatus(workspaceRoot) {
+  if (!defaultContextExists(workspaceRoot)) {
+    return {
+      exists: false,
+      source_path: DEFAULT_CONTEXT_DIR,
+      sandbox_path: DEFAULT_CONTEXT_SANDBOX_PATH,
+      readonly: true,
+      auto_mount: false
+    };
+  }
+
+  const mount = resolveContextMount(DEFAULT_CONTEXT_DIR, workspaceRoot, {
+    mountRole: "default",
+    sandboxPath: DEFAULT_CONTEXT_SANDBOX_PATH
+  });
+
+  return {
+    exists: true,
+    auto_mount: true,
+    ...mount
+  };
+}
+
+export function initDefaultContext(workspaceRoot, { force = false } = {}) {
+  const contextDir = path.join(workspaceRoot, DEFAULT_CONTEXT_DIR);
+  const files = {
+    "AGENTS.md": starterAgentsMarkdown(),
+    "seo-guidelines.md": starterSeoMarkdown(),
+    "safety-policy.md": starterSafetyMarkdown()
+  };
+
+  fs.mkdirSync(contextDir, { recursive: true });
+
+  const existingFiles = Object.keys(files).filter((file) => fs.existsSync(path.join(contextDir, file)));
+  if (existingFiles.length > 0 && !force) {
+    return {
+      created: false,
+      source_path: DEFAULT_CONTEXT_DIR,
+      sandbox_path: DEFAULT_CONTEXT_SANDBOX_PATH,
+      message: `Context folder already exists at ${DEFAULT_CONTEXT_DIR}. Use --force to rewrite starter files.`
+    };
+  }
+
+  for (const [file, contents] of Object.entries(files)) {
+    const filePath = path.join(contextDir, file);
+    if (force || !fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, contents);
+    }
+  }
+
+  return {
+    created: true,
+    source_path: DEFAULT_CONTEXT_DIR,
+    sandbox_path: DEFAULT_CONTEXT_SANDBOX_PATH,
+    files: Object.keys(files),
+    message: `Context folder ready at ${DEFAULT_CONTEXT_DIR}. It auto-mounts read-only at ${DEFAULT_CONTEXT_SANDBOX_PATH}.`
+  };
+}
+
+function resolveContextMount(input, workspaceRoot, { mountRole, sandboxPath }) {
   const absolutePath = path.resolve(workspaceRoot, String(input));
   if (!fs.existsSync(absolutePath)) {
     throw new Error(`Context mount does not exist: ${input}`);
@@ -29,19 +119,26 @@ function resolveContextMount(input, workspaceRoot) {
 
   const stats = fs.statSync(absolutePath);
   if (stats.isDirectory()) {
-    return summarizeDirectory(absolutePath, workspaceRoot);
+    return summarizeDirectory(absolutePath, workspaceRoot, { mountRole, sandboxPath });
   }
 
   if (!stats.isFile()) {
     throw new Error(`Context mount must be a file or folder: ${input}`);
   }
 
-  return summarizeFile(absolutePath, workspaceRoot);
+  return summarizeFile(absolutePath, workspaceRoot, { mountRole, sandboxPath });
 }
 
-function summarizeDirectory(absolutePath, workspaceRoot) {
+function summarizeDirectory(absolutePath, workspaceRoot, { mountRole, sandboxPath }) {
   const files = listContextFiles(absolutePath);
-  const summaries = files.map((filePath) => summarizeFile(filePath, workspaceRoot, absolutePath));
+  const summaries = files.map((filePath) => {
+    const relativePath = path.relative(absolutePath, filePath);
+    return summarizeFile(filePath, workspaceRoot, {
+      folderRoot: absolutePath,
+      mountRole,
+      sandboxPath: path.posix.join(sandboxPath, relativePath.split(path.sep).join(path.posix.sep))
+    });
+  });
   const hash = crypto.createHash("sha256");
   for (const summary of summaries) {
     hash.update(summary.relative_path);
@@ -52,6 +149,8 @@ function summarizeDirectory(absolutePath, workspaceRoot) {
     type: "folder",
     source_path: path.relative(workspaceRoot, absolutePath) || ".",
     absolute_path: absolutePath,
+    sandbox_path: sandboxPath,
+    mount_role: mountRole,
     readonly: true,
     file_count: summaries.length,
     total_bytes: summaries.reduce((sum, item) => sum + item.bytes, 0),
@@ -60,7 +159,7 @@ function summarizeDirectory(absolutePath, workspaceRoot) {
   };
 }
 
-function summarizeFile(absolutePath, workspaceRoot, folderRoot = null) {
+function summarizeFile(absolutePath, workspaceRoot, { folderRoot = null, mountRole, sandboxPath }) {
   assertNotSecretPath(absolutePath);
 
   const buffer = fs.readFileSync(absolutePath);
@@ -72,11 +171,19 @@ function summarizeFile(absolutePath, workspaceRoot, folderRoot = null) {
     source_path: sourcePath,
     relative_path: relativePath,
     absolute_path: absolutePath,
+    sandbox_path: sandboxPath,
+    mount_role: mountRole,
     readonly: true,
     bytes: buffer.byteLength,
     sha256: crypto.createHash("sha256").update(buffer).digest("hex"),
     preview: previewText(buffer)
   };
+}
+
+function buildExtraSandboxPath(input, workspaceRoot, index) {
+  const absolutePath = path.resolve(workspaceRoot, String(input));
+  const basename = path.basename(absolutePath).replace(/[^a-zA-Z0-9._-]/g, "-") || `mount-${index + 1}`;
+  return path.posix.join(EXTRA_CONTEXT_SANDBOX_ROOT, basename);
 }
 
 function listContextFiles(root) {
@@ -127,4 +234,43 @@ function previewText(buffer) {
     .join("\n");
 
   return cleaned.slice(0, 700);
+}
+
+function starterAgentsMarkdown() {
+  return `# Brand Context
+
+These files are mounted read-only into every Plyboard sandbox at ${DEFAULT_CONTEXT_SANDBOX_PATH}.
+
+## How Agents Should Act
+
+- Act like a careful ecommerce operator.
+- Prefer draft-safe edits and audit recommendations.
+- Make proposed production changes reviewable before execution.
+- Explain why each action is safe, needs approval, or blocked.
+- Never request raw API secrets inside the sandbox.
+
+## Brand Voice
+
+- Clear, practical, and specific.
+- Avoid unsupported performance claims.
+- Prefer concrete product details: material, fit, care, use case, and collection role.
+`;
+}
+
+function starterSeoMarkdown() {
+  return `# SEO Guidelines
+
+- SEO titles should include the product type and strongest search modifier.
+- Meta descriptions should be plain-language summaries, not keyword stuffing.
+- Do not use launch language for products that are still marked as draft.
+`;
+}
+
+function starterSafetyMarkdown() {
+  return `# Safety Policy
+
+- Safe: draft enrichment, SEO drafts, image alt text drafts, media issue flags, and audit recommendations.
+- Needs approval: publishing, live merchandising changes, pricing, inventory, and collection publication.
+- Blocked: media deletion, theme publishing, customer messaging, payment/refund actions, admin user changes, and webhook creation.
+`;
 }
