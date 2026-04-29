@@ -1,0 +1,130 @@
+{
+  "id": "product-readiness-qa",
+  "name": "Product Readiness QA Blueprint",
+  "version": "0.1.0",
+  "runtime": {
+    "name": "Docker SBX",
+    "mode": "mocked",
+    "image": "ghcr.io/plyboard/blueprints/product-readiness-qa:demo",
+    "network": "brokered-egress-only",
+    "workspace": "/workspace",
+    "secretsSharedWithSandbox": false
+  },
+  "description": "Reviews draft Shopify products and live storefront merchandising before launch.",
+  "agents": [
+    {
+      "id": "catalog-qa",
+      "name": "Catalog QA Agent",
+      "runtimeBlueprint": "docker-sbx/catalog-qa",
+      "toolkit": [
+        "Codex CLI",
+        "Shopify API Broker",
+        "Commerce Manifest Writer",
+        "Product Policy Classifier"
+      ],
+      "checks": [
+        "required fields",
+        "description quality",
+        "SEO title",
+        "meta description",
+        "tags",
+        "variants",
+        "image alt text",
+        "photo quality",
+        "missing media",
+        "collection assignment",
+        "publish readiness"
+      ],
+      "tools": [
+        "shopify.product.read",
+        "shopify.product.draft_update",
+        "shopify.media.inspect",
+        "manifest.action.propose"
+      ]
+    },
+    {
+      "id": "storefront-merchandising",
+      "name": "Storefront Merchandising Agent",
+      "runtimeBlueprint": "docker-sbx/storefront-merchandising",
+      "toolkit": [
+        "Codex CLI",
+        "Shopify Storefront Broker",
+        "Collection Audit Toolkit",
+        "Commerce Manifest Writer"
+      ],
+      "checks": [
+        "visual merchandising",
+        "collection presentation",
+        "product card quality",
+        "image consistency",
+        "missing enrichment",
+        "product positioning",
+        "presentation correctness"
+      ],
+      "tools": [
+        "shopify.storefront.read",
+        "shopify.collection.read",
+        "shopify.collection.propose_sort",
+        "manifest.action.propose"
+      ]
+    }
+  ],
+  "contextMounts": {
+    "allowed": true,
+    "readOnly": true,
+    "acceptedInputs": [
+      "AGENTS.md",
+      "folder"
+    ],
+    "description": "Brand, merchandising, SEO, and operating instructions mounted read-only into the sandbox."
+  },
+  "secretsPolicy": {
+    "standard": "SBX",
+    "secretsSharedWithSandbox": false,
+    "credentialOwner": "host-api-broker",
+    "sandboxReceives": [
+      "scoped tool results",
+      "non-secret resource identifiers",
+      "manifest schema",
+      "read-only context mounts"
+    ],
+    "sandboxNeverReceives": [
+      "Shopify API tokens",
+      "app secrets",
+      "customer credentials",
+      "production access tokens",
+      "raw .env files"
+    ]
+  },
+  "policy": {
+    "safe": [
+      "product.read",
+      "product.enrichment_draft",
+      "product.seo_draft",
+      "product.image_alt_text_draft",
+      "product.media_issue_flag",
+      "product.publish_readiness_check",
+      "storefront.product_quality_audit",
+      "collection.merchandising_recommendation"
+    ],
+    "needsApproval": [
+      "product.publish",
+      "product.publish.ready",
+      "collection.publish",
+      "collection.sort_update",
+      "product.update_price",
+      "inventory.update"
+    ],
+    "blocked": [
+      "product.media_delete",
+      "inventory.decrement",
+      "theme.publish.production",
+      "customer.email_send",
+      "payment.capture",
+      "refund.create",
+      "admin_user.create",
+      "webhook.create"
+    ]
+  },
+  "manifestSchema": "schemas/action-manifest.schema.json"
+}

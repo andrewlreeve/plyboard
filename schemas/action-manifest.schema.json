@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plyboard.local/schemas/action-manifest.schema.json",
+  "title": "Plyboard Action Manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run",
+    "blueprint",
+    "agents",
+    "sbx",
+    "policy_summary",
+    "product_findings",
+    "storefront_findings",
+    "actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "plyboard.action_manifest.v1"
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "id",
+        "created_at",
+        "target_environment",
+        "safety_mode",
+        "status"
+      ]
+    },
+    "blueprint": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "runtime"
+      ]
+    },
+    "agents": {
+      "type": "array",
+      "minItems": 1
+    },
+    "sbx": {
+      "type": "object",
+      "required": [
+        "runtime",
+        "secrets_shared_with_sandbox",
+        "api_access"
+      ]
+    },
+    "policy_summary": {
+      "type": "object",
+      "required": [
+        "safe",
+        "needs_approval",
+        "blocked",
+        "total"
+      ]
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "agent_id",
+          "action_type",
+          "policy_result",
+          "reasoning",
+          "rollback_note"
+        ],
+        "properties": {
+          "policy_result": {
+            "enum": [
+              "safe",
+              "needs_approval",
+              "blocked"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
