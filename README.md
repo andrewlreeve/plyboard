@@ -8,7 +8,7 @@
 
 ## The Short Version
 
-Plywood lets ecommerce teams use AI agents to do store chores safely.
+Plywood lets ecommerce teams use AI agents to do store chores safely. It is built with Codex and is designed to run Codex-backed blueprints using your ChatGPT subscription, without handing store credentials to the agent.
 
 Pick a job, like checking new products before launch. Plywood sends the right AI helpers to review the store, draft fixes, and show you exactly what they want to change.
 
@@ -37,7 +37,7 @@ For each store job, Plywood uses a prebuilt blueprint with the right AI helpers,
 
 The AI can inspect and draft. Plywood decides what is safe, what needs approval, and what should be blocked. The operator reviews the plan before production changes happen.
 
-Plywood was built as part of the OpenAI Codex Hackathon Sydney.
+Plywood was built with Codex as part of the OpenAI Codex Hackathon Sydney.
 
 ## Current Demo
 
@@ -63,6 +63,7 @@ The mocked Product Readiness QA Blueprint produces a structured action manifest,
 Plywood's current architecture:
 
 - Agents run in isolated blueprints.
+- Codex is the default agent adapter, so blueprints can run through the operator's ChatGPT subscription instead of separate agent infrastructure.
 - Retailer context is mounted read-only from `context/`.
 - Raw Shopify and commerce API secrets stay outside the sandbox.
 - Proposed changes become structured manifests before execution.
