@@ -53,11 +53,13 @@ For the hackathon demo, store actions are mocked. The important part is the flow
 
 ## For Builders
 
-The current milestone is a CLI product kernel. Under the hood, Plywood models CLI-native ecommerce agents running inside Docker SBX-style sandboxes.
+The current milestone is an operator GUI backed by a CLI product kernel. Under the hood, Plywood models CLI-native ecommerce agents running inside Docker SBX-style sandboxes.
+
+The GUI is the primary demo surface. The CLI remains the product kernel for blueprint execution, policy review, approvals, context mounting, and audit export.
 
 The mocked Product Readiness QA Blueprint produces a structured action manifest, classifies every proposed action as `safe`, `needs_approval`, or `blocked`, and writes reviewable audit artifacts.
 
-Plywood's intended architecture:
+Plywood's current architecture:
 
 - Agents run in isolated blueprints.
 - Retailer context is mounted read-only from `context/`.
@@ -65,7 +67,40 @@ Plywood's intended architecture:
 - Proposed changes become structured manifests before execution.
 - Audit packets and rollback plans are generated for review.
 
-## Quick Start
+## Run The Demo UI
+
+```bash
+npm install
+npm test
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:3210
+```
+
+The operator console lets you:
+
+- Select the Product Readiness QA blueprint.
+- Choose target store and safety mode.
+- Edit shared brand and operating context.
+- Run the mocked sandboxed agents.
+- Review safe, approval-required, and blocked actions.
+- Approve gated actions.
+- Export the audit packet.
+
+The GUI is backed by the same Plywood CLI. It serves static files from `public/` and calls `bin/plywood.mjs` through `server.mjs`.
+
+## Blueprints
+
+Plywood currently ships with two blueprint shapes:
+
+- `default`: a generic Codex/Docker SBX sandbox blueprint for loading the workspace, mounting `context/` read-only, and running Codex as the sandbox agent.
+- `product-readiness-qa`: the ecommerce demo workflow that runs the mocked Catalog QA Agent and Storefront Merchandising Agent.
+
+## CLI Quick Start
 
 ```bash
 npm install
