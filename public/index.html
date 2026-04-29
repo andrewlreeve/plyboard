@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Plywood Operator Console</title>
+    <title>Plywood Product Readiness</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,40 +14,38 @@
   </head>
   <body>
     <div class="shell">
-      <header class="hero fade-up">
+      <header class="app-header fade-up">
         <div>
           <p class="eyebrow">Plywood</p>
-          <h1>Operator Console</h1>
-          <p class="hero-copy">
-            Start a store review, see what the agents found, and approve only the changes you want to allow.
-          </p>
+          <h1>Agent Review</h1>
         </div>
+        <nav class="page-nav" aria-label="Views">
+          <button id="view-console-button" class="nav-button active" type="button">Review</button>
+          <button id="view-context-button" class="nav-button" type="button">Brand Guidance</button>
+        </nav>
       </header>
 
-      <nav class="page-nav fade-up" style="animation-delay: 40ms">
-        <button id="view-console-button" class="nav-button active" type="button">Operator Console</button>
-        <button id="view-context-button" class="nav-button" type="button">Brand Context</button>
-      </nav>
-
       <section id="console-view" class="page-view active">
-        <main class="layout">
-          <aside class="panel controls fade-up" style="animation-delay: 80ms">
+        <main class="operator-layout">
+          <section class="panel run-panel fade-up" style="animation-delay: 80ms">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">Run</p>
-                <h2>Run Agent</h2>
+                <p class="eyebrow">Start</p>
+                <h2>Run setup</h2>
               </div>
               <button id="refresh-button" class="ghost-button" type="button">Refresh</button>
             </div>
 
-            <form id="run-form" class="stack">
+            <p id="blueprint-summary" class="run-panel-copy">Choose an agent blueprint and store target.</p>
+
+            <form id="run-form" class="run-form">
               <label class="field">
-                <span>Agent Blueprint</span>
+                <span>Agent blueprint</span>
                 <select id="blueprint-select" name="blueprintId"></select>
               </label>
 
               <label class="field">
-                <span>Target Environment</span>
+                <span>Store</span>
                 <select id="target-select" name="target">
                   <option value="demo">Demo store</option>
                   <option value="dev">Development store</option>
@@ -57,7 +55,7 @@
               </label>
 
               <label class="field">
-                <span>Approval Setting</span>
+                <span>Change level</span>
                 <select id="safety-select" name="safetyMode">
                   <option value="read-only">Review only</option>
                   <option value="draft-only" selected>Allow draft updates</option>
@@ -66,170 +64,154 @@
                 </select>
               </label>
 
-              <label class="field">
-                <span>Notes For This Review</span>
+              <label class="field run-note-field">
+                <span>Focus</span>
                 <textarea
                   id="context-input"
                   name="contextPaths"
-                  rows="4"
-                  placeholder="Example: Focus on new summer arrivals, keep the tone practical, and flag anything that should not go live yet."
+                  rows="2"
+                  placeholder="Summer launch, new arrivals, SEO cleanup..."
                 ></textarea>
               </label>
 
-              <button id="run-button" class="primary-button" type="submit">Run Agent</button>
+              <input id="actor-input" class="visually-hidden" type="text" value="gui-operator" />
+              <label class="field approval-note-field">
+                <span>Approval note</span>
+                <textarea id="approval-note-input" rows="2" placeholder="Optional"></textarea>
+              </label>
+
+              <button id="run-button" class="primary-button" type="submit">Run review</button>
             </form>
 
-            <section class="subpanel">
-              <div class="subpanel-head">
-                <h3>Operator</h3>
-                <span class="pill neutral">Who is approving</span>
-              </div>
-              <div class="stack compact">
-                <label class="field">
-                  <span>Actor</span>
-                  <input id="actor-input" type="text" value="gui-operator" />
-                </label>
-                <label class="field">
-                  <span>Review Note</span>
-                  <textarea id="approval-note-input" rows="3" placeholder="Approved after review"></textarea>
-                </label>
-              </div>
-            </section>
-
-            <section class="subpanel">
-              <div class="subpanel-head">
-                <h3>Shared Instructions</h3>
+            <details class="quiet-details">
+              <summary>
+                <span>Guidance</span>
                 <span id="context-status-pill" class="pill neutral">Checking</span>
-              </div>
+              </summary>
               <div id="context-summary" class="mini-list"></div>
-            </section>
+            </details>
 
-            <section class="subpanel">
-              <div class="subpanel-head">
-                <h3>Activity</h3>
+            <details class="quiet-details">
+              <summary>
+                <span>Activity</span>
                 <span id="activity-state" class="pill neutral">Idle</span>
-              </div>
+              </summary>
               <ol id="activity-log" class="activity-log"></ol>
-            </section>
-          </aside>
+            </details>
+          </section>
 
-          <section class="content">
-            <div class="stats-grid fade-up" style="animation-delay: 140ms">
-              <article class="stat-card">
-                <span class="stat-label">Agent Blueprint</span>
-                <strong id="stat-blueprint">Waiting</strong>
-                <span id="stat-runtime" class="stat-meta">No blueprint loaded</span>
-              </article>
-              <article class="stat-card stat-card-safe">
-                <span class="stat-label">Ready</span>
-                <strong id="stat-safe">0</strong>
-                <span class="stat-meta">No review needed</span>
-              </article>
-              <article class="stat-card stat-card-approval">
-                <span class="stat-label">Needs Review</span>
-                <strong id="stat-approval">0</strong>
-                <span class="stat-meta">Awaiting decision</span>
-              </article>
-              <article class="stat-card stat-card-blocked">
-                <span class="stat-label">Blocked</span>
-                <strong id="stat-blocked">0</strong>
-                <span class="stat-meta">Will not run</span>
-              </article>
-            </div>
-
-            <section class="panel summary fade-up" style="animation-delay: 220ms">
+          <section class="review-workspace">
+            <section class="panel review-summary fade-up" style="animation-delay: 140ms">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">Current Review</p>
-                  <h2 id="run-title">Choose a review</h2>
+                  <p class="eyebrow">Review</p>
+                  <h2 id="run-title">No review yet</h2>
+                  <span id="stat-blueprint" class="review-blueprint">Product Readiness QA</span>
+                  <span id="stat-runtime" class="visually-hidden">No blueprint loaded</span>
                 </div>
                 <span id="run-status" class="pill neutral">Awaiting run</span>
               </div>
 
-              <p id="run-overview" class="run-overview">Start a review to see findings and recommended changes.</p>
+              <p id="run-overview" class="run-overview">Run a review to fill the queue.</p>
 
-              <div id="run-metadata" class="summary-grid"></div>
-
-              <section class="info-block summary-detail">
-                <div class="subpanel-head">
-                  <h3>Instructions Used</h3>
-                  <span id="mount-count" class="pill neutral">0 files</span>
+              <div class="decision-counts">
+                <div class="decision-count ready-count">
+                  <span>Ready</span>
+                  <strong id="stat-safe">0</strong>
                 </div>
-                <p id="mount-summary" class="instruction-summary"></p>
-                <div id="mount-list" class="simple-tag-list"></div>
-              </section>
-
-              <section class="info-block summary-detail">
-                <div class="subpanel-head">
-                  <h3>Safety Policy</h3>
-                  <span id="safety-rule-count" class="pill neutral">0 rules</span>
+                <div class="decision-count review-count">
+                  <span>Needs approval</span>
+                  <strong id="stat-approval">0</strong>
                 </div>
-                <p id="safety-policy-summary" class="instruction-summary"></p>
-                <div id="safety-rule-list" class="safety-rule-list"></div>
-              </section>
+                <div class="decision-count ran-count">
+                  <span>Ran</span>
+                  <strong id="stat-done">0</strong>
+                </div>
+                <div class="decision-count blocked-count">
+                  <span>Blocked</span>
+                  <strong id="stat-blocked">0</strong>
+                </div>
+              </div>
 
+              <div id="run-metadata" class="receipt-grid"></div>
+            </section>
+
+            <section class="panel actions-panel fade-up" style="animation-delay: 180ms">
               <div class="toolbar">
-                <div id="filter-group" class="segmented">
+                <div>
+                  <p class="eyebrow">Queue</p>
+                  <h2>Changes to decide</h2>
+                </div>
+
+                <div id="filter-group" class="segmented" aria-label="Filter changes">
                   <button class="segment active" data-filter="all" type="button">All</button>
-                  <button class="segment" data-filter="safe" type="button">Ready</button>
-                  <button class="segment" data-filter="needs_approval" type="button">Needs Review</button>
+                  <button class="segment" data-filter="ready" type="button">Ready</button>
+                  <button class="segment" data-filter="needs_approval" type="button">Approve</button>
+                  <button class="segment" data-filter="done" type="button">Ran</button>
                   <button class="segment" data-filter="blocked" type="button">Blocked</button>
                 </div>
+              </div>
 
+              <div class="queue-actions">
+                <span id="action-count" class="pill neutral">0 changes</span>
                 <div class="toolbar-actions">
-                  <button id="approve-button" class="secondary-button" type="button">Approve Selected</button>
-                  <button id="approve-all-button" class="secondary-button" type="button">Approve All Needing Review</button>
-                  <button id="execute-button" class="secondary-button" type="button">Execute Approved</button>
-                  <button id="export-button" class="ghost-button" type="button">Export Review Packet</button>
+                  <button id="approve-button" class="secondary-button" type="button">Approve selected</button>
+                  <button id="approve-all-button" class="secondary-button" type="button">Approve all</button>
+                  <button id="execute-button" class="secondary-button" type="button">Run approved</button>
+                  <button id="export-button" class="ghost-button" type="button">Export</button>
                 </div>
               </div>
+
+              <div id="actions-list" class="actions-list empty-state">No changes yet.</div>
             </section>
 
-            <section class="panel execution-panel fade-up" style="animation-delay: 260ms">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Mock Execution</p>
-                  <h2>Execution Ledger</h2>
-                </div>
-                <span id="execution-status" class="pill neutral">Not run</span>
-              </div>
-              <div id="execution-summary" class="summary-grid"></div>
-              <div id="execution-list" class="execution-list empty-state">No execution ledger yet.</div>
-            </section>
-
-            <section class="review-grid">
-              <article class="panel fade-up" style="animation-delay: 280ms">
-                <div class="panel-head">
+            <section class="support-grid">
+              <details class="panel detail-panel" open>
+                <summary>
+                  <span>Findings</span>
+                  <span class="detail-counts">
+                    <span id="product-count" class="pill neutral">0 products</span>
+                    <span id="storefront-count" class="pill neutral">0 audits</span>
+                  </span>
+                </summary>
+                <div class="finding-columns">
                   <div>
-                    <p class="eyebrow">Findings</p>
-                    <h2>Product QA</h2>
+                    <h3>Products</h3>
+                    <div id="product-findings" class="findings-list empty-state">No product findings yet.</div>
                   </div>
-                  <span id="product-count" class="pill neutral">0 products</span>
-                </div>
-                <div id="product-findings" class="findings-list empty-state">Run a blueprint to inspect findings.</div>
-              </article>
-
-              <article class="panel fade-up" style="animation-delay: 320ms">
-                <div class="panel-head">
                   <div>
-                    <p class="eyebrow">Findings</p>
-                    <h2>Storefront</h2>
+                    <h3>Storefront</h3>
+                    <div id="storefront-findings" class="findings-list empty-state">No storefront findings yet.</div>
                   </div>
-                  <span id="storefront-count" class="pill neutral">0 audits</span>
                 </div>
-                <div id="storefront-findings" class="findings-list empty-state">No storefront audit yet.</div>
-              </article>
-            </section>
+              </details>
 
-            <section class="panel actions-panel fade-up" style="animation-delay: 360ms">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Recommended Changes</p>
-                  <h2>Actions To Review</h2>
+              <details class="panel detail-panel">
+                <summary>
+                  <span>Run receipt</span>
+                  <span id="execution-status" class="pill neutral">Not run</span>
+                </summary>
+                <div id="execution-summary" class="receipt-grid"></div>
+                <div id="execution-list" class="execution-list empty-state">No run receipt yet.</div>
+
+                <div class="receipt-section">
+                  <div class="subpanel-head">
+                    <h3>Instructions used</h3>
+                    <span id="mount-count" class="pill neutral">0 files</span>
+                  </div>
+                  <p id="mount-summary" class="instruction-summary"></p>
+                  <div id="mount-list" class="simple-tag-list"></div>
                 </div>
-                <span id="action-count" class="pill neutral">0 actions</span>
-              </div>
-              <div id="actions-list" class="actions-list empty-state">Actions will appear after a run completes.</div>
+
+                <div class="receipt-section">
+                  <div class="subpanel-head">
+                    <h3>Safety rules</h3>
+                    <span id="safety-rule-count" class="pill neutral">0 rules</span>
+                  </div>
+                  <p id="safety-policy-summary" class="instruction-summary"></p>
+                  <div id="safety-rule-list" class="safety-rule-list"></div>
+                </div>
+              </details>
             </section>
           </section>
         </main>
@@ -240,16 +222,11 @@
           <section class="panel context-sidebar">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">Agent Instructions</p>
-                <h2>Brand Guidance</h2>
+                <p class="eyebrow">Guidance</p>
+                <h2>Brand rules</h2>
               </div>
               <span id="context-file-count" class="pill neutral">0 files</span>
             </div>
-
-            <p class="context-note">
-              Every agent uses these instructions when reviewing your catalog and storefront. Edit your brand voice,
-              merchandising standards, SEO guidance, and operating rules here so each run follows the same direction.
-            </p>
 
             <div class="context-create-row">
               <input id="new-context-file-input" type="text" placeholder="brand-voice.md" />
@@ -305,8 +282,8 @@
           <input class="action-checkbox" type="checkbox" />
           <span class="checkbox-shell"></span>
         </label>
-        <div class="action-body">
-          <div class="action-head">
+        <details class="action-details">
+          <summary class="action-head">
             <div>
               <div class="action-title-row">
                 <span class="action-id"></span>
@@ -318,7 +295,7 @@
               <span class="pill action-policy"></span>
               <span class="pill action-risk"></span>
             </div>
-          </div>
+          </summary>
           <div class="action-meta"></div>
           <div class="action-copy-grid">
             <div>
@@ -334,7 +311,7 @@
             <p class="action-reasoning"></p>
             <p class="action-rollback"></p>
           </div>
-        </div>
+        </details>
       </article>
     </template>
 

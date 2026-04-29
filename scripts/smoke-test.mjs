@@ -218,6 +218,13 @@ assert.equal(
   false
 );
 
+const postSkipApprovalOutput = run(["approve", "latest", "--action", "act-018", "--actor", "smoke-test"]);
+assert.match(postSkipApprovalOutput, /Approval recorded/);
+const postSkipApprovalManifest = JSON.parse(fs.readFileSync(path.join(root, latestRunDir, "manifest.json"), "utf8"));
+const postSkipApprovedAction = postSkipApprovalManifest.actions.find((action) => action.id === "act-018");
+assert.equal(postSkipApprovedAction.approval.status, "approved_not_executed");
+assert.equal(postSkipApprovedAction.execution, undefined);
+
 const exportOutput = run(["export-audit", "latest", "--out", "exports/smoke"]);
 assert.match(exportOutput, /Audit packet exported/);
 assert.ok(fs.existsSync(path.join(root, "exports", "smoke", "audit-packet.md")));

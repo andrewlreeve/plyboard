@@ -27,6 +27,7 @@ const elements = {
   runForm: document.querySelector("#run-form"),
   refreshButton: document.querySelector("#refresh-button"),
   runButton: document.querySelector("#run-button"),
+  blueprintSummary: document.querySelector("#blueprint-summary"),
   approveButton: document.querySelector("#approve-button"),
   approveAllButton: document.querySelector("#approve-all-button"),
   executeButton: document.querySelector("#execute-button"),
@@ -58,6 +59,7 @@ const elements = {
   statRuntime: document.querySelector("#stat-runtime"),
   statSafe: document.querySelector("#stat-safe"),
   statApproval: document.querySelector("#stat-approval"),
+  statDone: document.querySelector("#stat-done"),
   statBlocked: document.querySelector("#stat-blocked"),
   contextFileCount: document.querySelector("#context-file-count"),
   contextFileList: document.querySelector("#context-file-list"),
@@ -123,7 +125,7 @@ elements.runForm.addEventListener("submit", async (event) => {
     state.filter = suggestedFilter(manifest);
     render();
     setActivityState("Run Complete", "safe");
-    logActivity(`Run ${manifest.run.id} completed with ${manifest.policy_summary.total} actions.`, "safe");
+    logActivity(`Review complete: ${manifest.policy_summary.total} changes in the queue.`, "safe");
     setView("console");
   } catch (error) {
     setActivityState("Run Failed", "blocked");
@@ -174,7 +176,7 @@ elements.approveButton.addEventListener("click", async () => {
     state.selectedActions.clear();
     render();
     setActivityState("Approved", "safe");
-    logActivity(`Recorded approval ${result.approval.id} for ${result.approval.action_ids.join(", ")}.`, "safe");
+    logActivity(`Approved ${result.approval.action_ids.length} selected change${result.approval.action_ids.length === 1 ? "" : "s"}.`, "safe");
   } catch (error) {
     setActivityState("Approval Failed", "blocked");
     logActivity(error.message, "blocked");
@@ -204,7 +206,7 @@ elements.approveAllButton.addEventListener("click", async () => {
     state.selectedActions.clear();
     render();
     setActivityState("Approved", "safe");
-    logActivity(`Approved all gated actions for run ${result.manifest.run.id}.`, "safe");
+    logActivity("Approved all changes needing approval.", "safe");
   } catch (error) {
     setActivityState("Approval Failed", "blocked");
     logActivity(error.message, "blocked");
@@ -231,14 +233,15 @@ elements.executeButton.addEventListener("click", async () => {
     state.executionResult = result.execution;
     state.manifest = result.manifest;
     state.selectedActions.clear();
+    state.filter = suggestedFilter(result.manifest);
     render();
     setActivityState("Executed", "safe");
     logActivity(
-      `Execution ledger recorded ${result.execution.summary.mock_executed} mocked broker calls.`,
+      `Run receipt recorded ${result.execution.summary.mock_executed} completed changes.`,
       "safe"
     );
   } catch (error) {
-    setActivityState("Execution Failed", "blocked");
+    setActivityState("Run Failed", "blocked");
     logActivity(error.message, "blocked");
   } finally {
     setBusy(false);
@@ -397,8 +400,11 @@ async function boot() {
 
   if (state.manifest?.blueprint?.id) {
     await loadBlueprintDetail(state.manifest.blueprint.id);
-  } else if (state.blueprints[0]?.id) {
-    await loadBlueprintDetail(state.blueprints[0].id);
+  } else {
+    const operatorBlueprint = state.blueprints.find((blueprint) => blueprint.id === "product-readiness-qa") || state.blueprints[0];
+    if (operatorBlueprint?.id) {
+      await loadBlueprintDetail(operatorBlueprint.id);
+    }
   }
 
   if (state.contextFiles[0]) {
@@ -476,7 +482,8 @@ async function loadBlueprintDetail(id) {
 
 function populateBlueprints() {
   elements.blueprintSelect.innerHTML = "";
-  for (const blueprint of state.blueprints) {
+  const workflowBlueprints = selectableBlueprints();
+  for (const blueprint of workflowBlueprints) {
     const option = document.createElement("option");
     option.value = blueprint.id;
     option.textContent = blueprint.name;
@@ -486,6 +493,11 @@ function populateBlueprints() {
   if (state.activeBlueprint?.id) {
     elements.blueprintSelect.value = state.activeBlueprint.id;
   }
+}
+
+function selectableBlueprints() {
+  const runnable = state.blueprints.filter((blueprint) => blueprint.id !== "default");
+  return runnable.length > 0 ? runnable : state.blueprints;
 }
 
 function selectContextFile(filePath, { renderNow = true } = {}) {
@@ -536,10 +548,10 @@ function renderContext() {
 
   const items = context.exists
     ? [
-        "Every review uses these shared instructions.",
-        `${context.file_count} instruction file${context.file_count === 1 ? "" : "s"} ready for future runs.`
+        "Standard guidance ready.",
+        `${context.file_count} instruction file${context.file_count === 1 ? "" : "s"}.`
       ]
-    : ["No shared instructions folder is available yet."];
+    : ["No shared guidance found."];
 
   for (const item of items) {
     const div = document.createElement("div");
@@ -554,6 +566,7 @@ function renderSummary() {
 
   elements.statBlueprint.textContent = blueprint?.name || "Waiting";
   elements.statRuntime.textContent = state.activeBlueprint?.description || "Choose a review to begin.";
+  elements.blueprintSummary.textContent = activeBlueprintSummary();
 
   if (!manifest) {
     elements.runTitle.textContent = state.activeBlueprint?.name || "Choose a review";
@@ -576,6 +589,7 @@ function renderSummary() {
     renderSafetyPolicy(currentSafetyPolicy());
     elements.statSafe.textContent = "0";
     elements.statApproval.textContent = "0";
+    elements.statDone.textContent = "0";
     elements.statBlocked.textContent = "0";
     return;
   }
@@ -584,9 +598,11 @@ function renderSummary() {
   elements.runOverview.textContent = buildRunOverview(manifest);
   elements.runStatus.textContent = manifest.run.status;
   elements.runStatus.className = "pill safe";
-  elements.statSafe.textContent = String(manifest.policy_summary.safe);
-  elements.statApproval.textContent = String(manifest.policy_summary.needs_approval);
-  elements.statBlocked.textContent = String(manifest.policy_summary.blocked);
+  const decisionSummary = summarizeDecisions(manifest.actions || []);
+  elements.statSafe.textContent = String(decisionSummary.ready);
+  elements.statApproval.textContent = String(decisionSummary.needsApproval);
+  elements.statDone.textContent = String(decisionSummary.done);
+  elements.statBlocked.textContent = String(decisionSummary.blocked);
 
   const metadata = [
     ["Store", formatTarget(manifest.run.target_environment)],
@@ -619,6 +635,16 @@ function renderSummaryItems(container, items) {
   }
 }
 
+function activeBlueprintSummary() {
+  if (!state.activeBlueprint) {
+    return "Choose an agent blueprint and store target.";
+  }
+
+  const agentCount = Array.isArray(state.activeBlueprint.agents) ? state.activeBlueprint.agents.length : 0;
+  const agentLabel = agentCount === 1 ? "agent" : "agents";
+  return `${state.activeBlueprint.name} uses ${agentCount} ${agentLabel} and the selected change level.`;
+}
+
 function renderExecution() {
   const manifest = state.manifest;
   const execution = manifest?.execution;
@@ -628,7 +654,7 @@ function renderExecution() {
   if (!manifest) {
     elements.executionStatus.textContent = "Not run";
     elements.executionStatus.className = "pill neutral";
-    elements.executionList.textContent = "No execution ledger yet.";
+    elements.executionList.textContent = "No run receipt yet.";
     elements.executionList.classList.add("empty-state");
     return;
   }
@@ -638,10 +664,10 @@ function renderExecution() {
     elements.executionStatus.textContent = "Not run";
     elements.executionStatus.className = "pill neutral";
     renderSummaryItems(elements.executionSummary, [
-      ["Ready to execute", String(counts.executable)],
-      ["Needs approval first", String(counts.unapproved)],
+      ["Ready to run", String(counts.executable)],
+      ["Needs approval", String(counts.unapproved)],
       ["Blocked", String(counts.blocked)],
-      ["Mode", "Mock host broker"]
+      ["Last run", "Not run"]
     ]);
     elements.executionList.textContent = "No ledger entries recorded.";
     elements.executionList.classList.add("empty-state");
@@ -651,15 +677,15 @@ function renderExecution() {
   elements.executionStatus.textContent = "Completed";
   elements.executionStatus.className = "pill safe";
   renderSummaryItems(elements.executionSummary, [
-    ["Mock executed", String(execution.summary.mock_executed)],
+    ["Ran", String(execution.summary.mock_executed)],
     ["Skipped", String(execution.summary.skipped_unapproved)],
     ["Blocked", String(execution.summary.blocked)],
-    ["Ledger", execution.path]
+    ["Receipt", execution.path]
   ]);
 
   const entries = (manifest.actions || []).filter((action) => action.execution);
   if (entries.length === 0) {
-    elements.executionList.textContent = "Execution summary recorded without action-level ledger rows.";
+    elements.executionList.textContent = "Run receipt saved without change rows.";
     elements.executionList.classList.add("empty-state");
     return;
   }
@@ -682,7 +708,7 @@ function renderExecution() {
     head.append(title, status);
 
     const meta = document.createElement("p");
-    meta.textContent = `${action.resource} via ${action.execution.executor}`;
+    meta.textContent = action.resource;
 
     const reason = document.createElement("p");
     reason.textContent = action.execution.reason;
@@ -739,12 +765,12 @@ function renderActions() {
   const actions = filterActions(manifest?.actions || []);
 
   elements.actionsList.innerHTML = "";
-  elements.actionCount.textContent = `${actions.length} action${actions.length === 1 ? "" : "s"}`;
+  elements.actionCount.textContent = `${actions.length} change${actions.length === 1 ? "" : "s"}`;
 
   if (actions.length === 0) {
     elements.actionsList.textContent = manifest
-      ? "No actions match the current filter."
-      : "Recommended changes will appear after a run completes.";
+      ? "No changes match this view."
+      : "No changes yet.";
     elements.actionsList.classList.add("empty-state");
     updateActionButtons();
     return;
@@ -755,12 +781,14 @@ function renderActions() {
   for (const action of actions) {
     const fragment = elements.actionTemplate.content.cloneNode(true);
     const card = fragment.querySelector(".action-card");
+    const details = fragment.querySelector(".action-details");
     const select = fragment.querySelector(".action-select");
     const checkbox = fragment.querySelector(".action-checkbox");
     const isSelectable = action.policy_result === "needs_approval" && !action.approval;
 
     checkbox.disabled = !isSelectable;
     checkbox.checked = state.selectedActions.has(action.id);
+    details.open = action.policy_result === "needs_approval" && !action.approval;
 
     const syncSelectedState = () => {
       select.classList.toggle("action-select-hidden", !isSelectable);
@@ -768,22 +796,6 @@ function renderActions() {
       card.classList.toggle("action-card-selected", checkbox.checked);
       card.classList.toggle("action-card-static", !isSelectable);
       card.classList.toggle("action-card-disabled", !isSelectable);
-      card.setAttribute("aria-disabled", String(!isSelectable));
-    };
-
-    const toggleSelection = () => {
-      if (!isSelectable) {
-        return;
-      }
-
-      checkbox.checked = !checkbox.checked;
-      if (checkbox.checked) {
-        state.selectedActions.add(action.id);
-      } else {
-        state.selectedActions.delete(action.id);
-      }
-      syncSelectedState();
-      updateActionButtons();
     };
 
     checkbox.addEventListener("change", () => {
@@ -796,42 +808,27 @@ function renderActions() {
       updateActionButtons();
     });
 
-    card.addEventListener("click", (event) => {
-      if (event.target.closest(".action-checkbox")) {
-        return;
-      }
-      toggleSelection();
-    });
-
-    if (isSelectable) {
-      card.tabIndex = 0;
-      card.setAttribute("role", "button");
-      card.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          toggleSelection();
-        }
-      });
-    }
-
     fragment.querySelector(".action-id").textContent = action.id;
     fragment.querySelector(".action-type").textContent = formatActionType(action.action_type);
     fragment.querySelector(".action-resource").textContent = action.resource;
 
+    const displayStatus = actionDisplayStatus(action);
     const policy = fragment.querySelector(".action-policy");
-    policy.textContent = formatPolicy(action.policy_result);
-    policy.className = `pill action-policy ${action.policy_result}`;
+    policy.textContent = displayStatus.label;
+    policy.className = `pill action-policy ${displayStatus.tone}`;
 
     const risk = fragment.querySelector(".action-risk");
     risk.textContent = action.risk;
     risk.className = `pill action-risk ${riskClass(action.risk)}`;
 
     const metaItems = [
-      `<span>Suggested by ${formatAgentName(action.agent_id)}</span>`,
-      `<span>Safety rule: ${action.policy_rule_name || action.policy_rule || "Policy default"}</span>`
+      `<span>Checked by ${formatAgentName(action.agent_id)}</span>`
     ];
+    if (action.approval) {
+      metaItems.push(`<span>Approved by ${action.approval.actor}</span>`);
+    }
     if (action.execution) {
-      metaItems.push(`<span>Execution: ${formatExecutionStatus(action.execution.status)}</span>`);
+      metaItems.push(`<span>Run status: ${formatExecutionStatus(action.execution.status)}</span>`);
     }
     fragment.querySelector(".action-meta").innerHTML = metaItems.join("");
 
@@ -932,7 +929,48 @@ function filterActions(actions) {
   if (state.filter === "all") {
     return actions;
   }
-  return actions.filter((action) => action.policy_result === state.filter);
+  const filter = state.filter === "safe" ? "ready" : state.filter;
+  return actions.filter((action) => actionQueueState(action) === filter);
+}
+
+function summarizeDecisions(actions) {
+  const summary = {
+    ready: 0,
+    needsApproval: 0,
+    done: 0,
+    blocked: 0
+  };
+
+  for (const action of actions) {
+    const state = actionQueueState(action);
+    if (state === "done") {
+      summary.done += 1;
+    } else if (state === "blocked") {
+      summary.blocked += 1;
+    } else if (state === "needs_approval") {
+      summary.needsApproval += 1;
+    } else {
+      summary.ready += 1;
+    }
+  }
+
+  return summary;
+}
+
+function actionQueueState(action) {
+  if (action.execution?.status === "mock_executed") {
+    return "done";
+  }
+
+  if (action.policy_result === "blocked" || action.execution?.status === "blocked") {
+    return "blocked";
+  }
+
+  if (action.policy_result === "needs_approval" && !action.approval) {
+    return "needs_approval";
+  }
+
+  return "ready";
 }
 
 function updateActionButtons() {
@@ -952,14 +990,18 @@ function countExecutableActions(actions) {
   const counts = {
     executable: 0,
     unapproved: 0,
-    blocked: 0
+    blocked: 0,
+    done: 0
   };
 
   for (const action of actions) {
-    if (action.policy_result === "blocked") {
+    const state = actionQueueState(action);
+    if (state === "blocked") {
       counts.blocked += 1;
-    } else if (action.policy_result === "needs_approval" && !action.approval) {
+    } else if (state === "needs_approval") {
       counts.unapproved += 1;
+    } else if (state === "done") {
+      counts.done += 1;
     } else {
       counts.executable += 1;
     }
@@ -1021,16 +1063,39 @@ function formatPolicy(policy) {
   return (
     {
       safe: "Ready",
-      needs_approval: "Needs Review",
+      needs_approval: "Needs approval",
       blocked: "Blocked"
     }[policy] || policy.replace(/_/g, " ")
   );
 }
 
+function actionDisplayStatus(action) {
+  if (action.execution?.status === "mock_executed") {
+    return { label: "Ran", tone: "done" };
+  }
+
+  if (action.approval) {
+    return { label: "Approved", tone: "safe" };
+  }
+
+  if (action.execution?.status === "blocked") {
+    return { label: "Blocked", tone: "blocked" };
+  }
+
+  if (action.execution?.status === "skipped_unapproved") {
+    return { label: "Needs approval", tone: "needs_approval" };
+  }
+
+  return {
+    label: formatPolicy(action.policy_result),
+    tone: action.policy_result
+  };
+}
+
 function formatExecutionStatus(status) {
   return (
     {
-      mock_executed: "Mock executed",
+      mock_executed: "Ran",
       skipped_unapproved: "Skipped",
       blocked: "Blocked"
     }[status] || status.replace(/_/g, " ")
@@ -1040,7 +1105,7 @@ function formatExecutionStatus(status) {
 function executionStatusClass(status) {
   return (
     {
-      mock_executed: "safe",
+      mock_executed: "done",
       skipped_unapproved: "needs_approval",
       blocked: "blocked"
     }[status] || "neutral"
@@ -1184,20 +1249,25 @@ function formatMountName(sourcePath) {
 
 function buildRunOverview(manifest) {
   const parts = [];
+  const summary = summarizeDecisions(manifest.actions || []);
 
-  if (manifest.policy_summary.needs_approval > 0) {
+  if (summary.needsApproval > 0) {
     parts.push(
-      `${manifest.policy_summary.needs_approval} change${manifest.policy_summary.needs_approval === 1 ? " needs" : "s need"} review`
+      `${summary.needsApproval} change${summary.needsApproval === 1 ? " needs" : "s need"} approval`
     );
   }
 
-  if (manifest.policy_summary.safe > 0) {
-    parts.push(`${manifest.policy_summary.safe} ${manifest.policy_summary.safe === 1 ? "is" : "are"} ready`);
+  if (summary.ready > 0) {
+    parts.push(`${summary.ready} ${summary.ready === 1 ? "is" : "are"} ready`);
   }
 
-  if (manifest.policy_summary.blocked > 0) {
+  if (summary.done > 0) {
+    parts.push(`${summary.done} ${summary.done === 1 ? "has" : "have"} run`);
+  }
+
+  if (summary.blocked > 0) {
     parts.push(
-      `${manifest.policy_summary.blocked} change${manifest.policy_summary.blocked === 1 ? "" : "s"} ${manifest.policy_summary.blocked === 1 ? "is" : "are"} blocked`
+      `${summary.blocked} change${summary.blocked === 1 ? "" : "s"} ${summary.blocked === 1 ? "is" : "are"} blocked`
     );
   }
 
@@ -1212,11 +1282,18 @@ function suggestedFilter(manifest) {
   if (!manifest) {
     return "all";
   }
-  if (manifest.policy_summary.needs_approval > 0) {
+  const summary = summarizeDecisions(manifest.actions || []);
+  if (summary.needsApproval > 0) {
     return "needs_approval";
   }
-  if (manifest.policy_summary.blocked > 0) {
+  if (summary.ready > 0) {
+    return "ready";
+  }
+  if (summary.blocked > 0) {
     return "blocked";
+  }
+  if (summary.done > 0) {
+    return "done";
   }
   return "all";
 }

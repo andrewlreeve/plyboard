@@ -171,19 +171,27 @@ export function recordApproval(reference, workspaceRoot, { actionIds, allNeedsAp
   const updatedManifest = {
     ...manifest,
     approvals,
-    actions: manifest.actions.map((action) =>
-      approval.action_ids.includes(action.id)
-        ? {
-            ...action,
-            approval: {
-              status: "approved_not_executed",
-              approval_id: approval.id,
-              approved_at: createdAt,
-              actor
-            }
-          }
-        : action
-    )
+    actions: manifest.actions.map((action) => {
+      if (!approval.action_ids.includes(action.id)) {
+        return action;
+      }
+
+      const approvedAction = {
+        ...action,
+        approval: {
+          status: "approved_not_executed",
+          approval_id: approval.id,
+          approved_at: createdAt,
+          actor
+        }
+      };
+
+      if (approvedAction.execution?.status === "skipped_unapproved") {
+        delete approvedAction.execution;
+      }
+
+      return approvedAction;
+    })
   };
 
   const auditPacket = buildAuditPacket(updatedManifest);

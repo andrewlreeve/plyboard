@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>YOLO-mode AI agents for ecommerce, without blowing up production.</strong>
+  <strong>Approval-first ecommerce agents with sandboxing, audit trails, and rollback plans.</strong>
 </p>
 
 ## The Short Version
@@ -17,6 +17,7 @@ Before anything risky goes live, you get a clear review screen:
 - Things that are safe.
 - Things that need your approval.
 - Things Plywood blocked.
+- A rollback plan for undoing approved changes if something needs to be restored.
 
 No terminal commands for store operators. No local setup. No store keys sitting on someone's laptop. No mystery changes to your live store.
 
@@ -49,7 +50,7 @@ It uses two AI helpers:
 - **Catalog QA Agent:** reviews draft products for missing enrichment, weak descriptions, SEO gaps, tags, variants, image alt text, photo quality, collection fit, and publish readiness.
 - **Storefront Merchandising Agent:** reviews the live storefront for product presentation, collection merchandising, product card quality, image consistency, weak positioning, and existing enrichment gaps.
 
-For the hackathon demo, store actions are mocked. The important part is the flow: run the agents, review the proposed changes, approve what is safe, and block what should not happen.
+For the hackathon demo, store actions are mocked. The important part is the flow: run the agents, review the proposed changes, approve what is safe, block what should not happen, and keep rollback notes with the audit packet.
 
 ## For Builders
 
@@ -65,7 +66,7 @@ Plywood's current architecture:
 - Retailer context is mounted read-only from `context/`.
 - Raw Shopify and commerce API secrets stay outside the sandbox.
 - Proposed changes become structured manifests before execution.
-- Audit packets and rollback plans are generated for review.
+- Audit packets and rollback plans are generated for review before and after approved changes run.
 
 ## Run The Demo UI
 
@@ -90,7 +91,7 @@ The operator console lets you:
 - Review safe, approval-required, and blocked actions.
 - Approve gated actions.
 - Mock-execute safe and approved actions through the host broker.
-- Export the audit packet.
+- Export the audit packet and rollback plan.
 
 The GUI is backed by the same Plywood CLI. It serves static files from `public/` and calls `bin/plywood.mjs` through `server.mjs`.
 
@@ -199,6 +200,7 @@ The demo also models the intended sandbox boundary:
 - The host side owns credential access and returns only the results the agent needs.
 - Blocked actions remain non-executable and are included for audit visibility.
 - Execution writes `execution-ledger.json` and `execution-ledger.md` beside the manifest, audit packet, broker trace, and rollback plan.
+- Rollback notes are attached to each proposed action so approved changes can be reviewed and restored from the recorded before values.
 
 ## Brand Context
 
@@ -274,5 +276,6 @@ Each blueprint workflow execution saves a folder under `runs/<run-id>/`:
 - `broker-trace.json`: mocked store tool calls.
 - `run-log.jsonl`: run events.
 - `approval-record.json`: mocked approvals, created after `plywood approve`.
+- `execution-ledger.json` and `execution-ledger.md`: mocked execution receipt, created after `plywood execute`.
 
 The latest run pointer is stored at `.plywood/latest-run`.
