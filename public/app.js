@@ -11,7 +11,8 @@ const state = {
   selectedContextFilePath: null,
   contextDraft: "",
   contextDirty: false,
-  exportResult: null
+  exportResult: null,
+  executionResult: null
 };
 
 const elements = {
@@ -28,6 +29,7 @@ const elements = {
   runButton: document.querySelector("#run-button"),
   approveButton: document.querySelector("#approve-button"),
   approveAllButton: document.querySelector("#approve-all-button"),
+  executeButton: document.querySelector("#execute-button"),
   exportButton: document.querySelector("#export-button"),
   activityLog: document.querySelector("#activity-log"),
   activityState: document.querySelector("#activity-state"),
@@ -41,6 +43,9 @@ const elements = {
   safetyRuleCount: document.querySelector("#safety-rule-count"),
   safetyPolicySummary: document.querySelector("#safety-policy-summary"),
   safetyRuleList: document.querySelector("#safety-rule-list"),
+  executionStatus: document.querySelector("#execution-status"),
+  executionSummary: document.querySelector("#execution-summary"),
+  executionList: document.querySelector("#execution-list"),
   contextSummary: document.querySelector("#context-summary"),
   contextStatusPill: document.querySelector("#context-status-pill"),
   productFindings: document.querySelector("#product-findings"),
@@ -109,6 +114,7 @@ elements.runForm.addEventListener("submit", async (event) => {
     state.manifest = manifest;
     state.selectedActions.clear();
     state.exportResult = null;
+    state.executionResult = null;
 
     if (manifest.blueprint?.id) {
       await loadBlueprintDetail(manifest.blueprint.id);
@@ -201,6 +207,38 @@ elements.approveAllButton.addEventListener("click", async () => {
     logActivity(`Approved all gated actions for run ${result.manifest.run.id}.`, "safe");
   } catch (error) {
     setActivityState("Approval Failed", "blocked");
+    logActivity(error.message, "blocked");
+  } finally {
+    setBusy(false);
+  }
+});
+
+elements.executeButton.addEventListener("click", async () => {
+  if (!state.manifest) {
+    return;
+  }
+
+  try {
+    setBusy(true);
+    setActivityState("Executing", "needs_approval");
+    const result = await api("/api/execute", {
+      method: "POST",
+      body: {
+        actor: readOperatorActor()
+      }
+    });
+
+    state.executionResult = result.execution;
+    state.manifest = result.manifest;
+    state.selectedActions.clear();
+    render();
+    setActivityState("Executed", "safe");
+    logActivity(
+      `Execution ledger recorded ${result.execution.summary.mock_executed} mocked broker calls.`,
+      "safe"
+    );
+  } catch (error) {
+    setActivityState("Execution Failed", "blocked");
     logActivity(error.message, "blocked");
   } finally {
     setBusy(false);
@@ -380,6 +418,7 @@ async function refreshLatestRun() {
     logActivity("Refreshing the latest review.", "neutral");
     state.manifest = await loadLatestManifest();
     state.selectedActions.clear();
+    state.executionResult = null;
 
     if (state.manifest?.blueprint?.id) {
       await loadBlueprintDetail(state.manifest.blueprint.id);
@@ -467,6 +506,7 @@ function render() {
   renderView();
   renderContext();
   renderSummary();
+  renderExecution();
   renderFindings();
   renderActions();
   renderFilters();
@@ -559,8 +599,15 @@ function renderSummary() {
     metadata.push(["Last Export", state.exportResult.exported_to]);
   }
 
-  elements.runMetadata.innerHTML = "";
-  for (const [label, value] of metadata) {
+  renderSummaryItems(elements.runMetadata, metadata);
+
+  renderMountList(manifest.sbx.mounted_context || []);
+  renderSafetyPolicy(currentSafetyPolicy());
+}
+
+function renderSummaryItems(container, items) {
+  container.innerHTML = "";
+  for (const [label, value] of items) {
     const wrapper = document.createElement("dl");
     wrapper.className = "summary-item";
     const dt = document.createElement("dt");
@@ -568,11 +615,81 @@ function renderSummary() {
     const dd = document.createElement("dd");
     dd.textContent = value;
     wrapper.append(dt, dd);
-    elements.runMetadata.append(wrapper);
+    container.append(wrapper);
+  }
+}
+
+function renderExecution() {
+  const manifest = state.manifest;
+  const execution = manifest?.execution;
+  elements.executionSummary.innerHTML = "";
+  elements.executionList.innerHTML = "";
+
+  if (!manifest) {
+    elements.executionStatus.textContent = "Not run";
+    elements.executionStatus.className = "pill neutral";
+    elements.executionList.textContent = "No execution ledger yet.";
+    elements.executionList.classList.add("empty-state");
+    return;
   }
 
-  renderMountList(manifest.sbx.mounted_context || []);
-  renderSafetyPolicy(currentSafetyPolicy());
+  if (!execution?.generated) {
+    const counts = countExecutableActions(manifest.actions || []);
+    elements.executionStatus.textContent = "Not run";
+    elements.executionStatus.className = "pill neutral";
+    renderSummaryItems(elements.executionSummary, [
+      ["Ready to execute", String(counts.executable)],
+      ["Needs approval first", String(counts.unapproved)],
+      ["Blocked", String(counts.blocked)],
+      ["Mode", "Mock host broker"]
+    ]);
+    elements.executionList.textContent = "No ledger entries recorded.";
+    elements.executionList.classList.add("empty-state");
+    return;
+  }
+
+  elements.executionStatus.textContent = "Completed";
+  elements.executionStatus.className = "pill safe";
+  renderSummaryItems(elements.executionSummary, [
+    ["Mock executed", String(execution.summary.mock_executed)],
+    ["Skipped", String(execution.summary.skipped_unapproved)],
+    ["Blocked", String(execution.summary.blocked)],
+    ["Ledger", execution.path]
+  ]);
+
+  const entries = (manifest.actions || []).filter((action) => action.execution);
+  if (entries.length === 0) {
+    elements.executionList.textContent = "Execution summary recorded without action-level ledger rows.";
+    elements.executionList.classList.add("empty-state");
+    return;
+  }
+
+  elements.executionList.classList.remove("empty-state");
+  for (const action of entries) {
+    const row = document.createElement("article");
+    row.className = "execution-row";
+
+    const head = document.createElement("div");
+    head.className = "execution-row-head";
+
+    const title = document.createElement("strong");
+    title.textContent = `${action.id} ${formatActionType(action.action_type)}`;
+
+    const status = document.createElement("span");
+    status.className = `pill ${executionStatusClass(action.execution.status)}`;
+    status.textContent = formatExecutionStatus(action.execution.status);
+
+    head.append(title, status);
+
+    const meta = document.createElement("p");
+    meta.textContent = `${action.resource} via ${action.execution.executor}`;
+
+    const reason = document.createElement("p");
+    reason.textContent = action.execution.reason;
+
+    row.append(head, meta, reason);
+    elements.executionList.append(row);
+  }
 }
 
 function renderFindings() {
@@ -709,10 +826,14 @@ function renderActions() {
     risk.textContent = action.risk;
     risk.className = `pill action-risk ${riskClass(action.risk)}`;
 
-    fragment.querySelector(".action-meta").innerHTML = [
+    const metaItems = [
       `<span>Suggested by ${formatAgentName(action.agent_id)}</span>`,
       `<span>Safety rule: ${action.policy_rule_name || action.policy_rule || "Policy default"}</span>`
-    ].join("");
+    ];
+    if (action.execution) {
+      metaItems.push(`<span>Execution: ${formatExecutionStatus(action.execution.status)}</span>`);
+    }
+    fragment.querySelector(".action-meta").innerHTML = metaItems.join("");
 
     fragment.querySelector(".action-before").textContent = action.before;
     fragment.querySelector(".action-after").textContent = action.after;
@@ -819,10 +940,32 @@ function updateActionButtons() {
   const approvalCandidates = (manifest?.actions || []).filter(
     (action) => action.policy_result === "needs_approval" && !action.approval
   );
+  const executable = countExecutableActions(manifest?.actions || []);
 
   elements.approveButton.disabled = state.busy || state.selectedActions.size === 0;
   elements.approveAllButton.disabled = state.busy || approvalCandidates.length === 0;
+  elements.executeButton.disabled = state.busy || !manifest || executable.executable === 0;
   elements.exportButton.disabled = state.busy || !manifest;
+}
+
+function countExecutableActions(actions) {
+  const counts = {
+    executable: 0,
+    unapproved: 0,
+    blocked: 0
+  };
+
+  for (const action of actions) {
+    if (action.policy_result === "blocked") {
+      counts.blocked += 1;
+    } else if (action.policy_result === "needs_approval" && !action.approval) {
+      counts.unapproved += 1;
+    } else {
+      counts.executable += 1;
+    }
+  }
+
+  return counts;
 }
 
 function setBusy(isBusy) {
@@ -881,6 +1024,26 @@ function formatPolicy(policy) {
       needs_approval: "Needs Review",
       blocked: "Blocked"
     }[policy] || policy.replace(/_/g, " ")
+  );
+}
+
+function formatExecutionStatus(status) {
+  return (
+    {
+      mock_executed: "Mock executed",
+      skipped_unapproved: "Skipped",
+      blocked: "Blocked"
+    }[status] || status.replace(/_/g, " ")
+  );
+}
+
+function executionStatusClass(status) {
+  return (
+    {
+      mock_executed: "safe",
+      skipped_unapproved: "needs_approval",
+      blocked: "blocked"
+    }[status] || "neutral"
   );
 }
 

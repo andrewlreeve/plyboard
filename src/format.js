@@ -13,6 +13,7 @@ Usage:
   plywood review [latest|run-id|run-dir|manifest.json] [--only safe|needs_approval|blocked] [--json]
   plywood approve [latest|run-id|run-dir] --action act-005 [--action act-018] [--actor operator]
   plywood approve latest --all-needs-approval [--actor operator]
+  plywood execute [latest|run-id|run-dir] [--actor operator] [--json]
   plywood export-audit [latest|run-id|run-dir] [--out exports/my-run]
 
 Examples:
@@ -23,6 +24,7 @@ Examples:
   plywood context status
   plywood review latest
   plywood review latest --only blocked
+  plywood execute latest
 `;
 }
 
@@ -266,6 +268,9 @@ export function formatReview(manifest, { only = null } = {}) {
     `Secrets shared with sandbox: ${manifest.sbx.secrets_shared_with_sandbox}`,
     `Policy: ${manifest.policy_summary.safe} safe | ${manifest.policy_summary.needs_approval} needs approval | ${manifest.policy_summary.blocked} blocked`,
     `Approvals recorded: ${(manifest.approvals || []).length}`,
+    manifest.execution?.generated
+      ? `Execution: ${manifest.execution.summary.mock_executed} mock executed | ${manifest.execution.summary.skipped_unapproved} skipped | ${manifest.execution.summary.blocked} blocked`
+      : `Execution: not run`,
     `Audit packet generated: ${manifest.audit_packet.generated}`,
     `Rollback plan generated: ${manifest.rollback_plan.generated}`,
     ``,
@@ -341,6 +346,24 @@ export function formatApprovalResult(approval) {
   if (approval.note) {
     lines.push(`Note: ${approval.note}`);
   }
+
+  return lines.join("\n");
+}
+
+export function formatExecutionResult(execution) {
+  const lines = [
+    `Execution ledger generated for ${execution.run_id}`,
+    `Status: ${execution.status}`,
+    `Mode: ${execution.mode}`,
+    `Actor: ${execution.actor}`,
+    `Mock executed: ${execution.summary.mock_executed}`,
+    `Safe executed: ${execution.summary.safe_executed}`,
+    `Approved executed: ${execution.summary.approved_executed}`,
+    `Skipped unapproved: ${execution.summary.skipped_unapproved}`,
+    `Blocked: ${execution.summary.blocked}`,
+    `Ledger: ${execution.ledger_path}`,
+    `Ledger markdown: ${execution.ledger_markdown_path}`
+  ];
 
   return lines.join("\n");
 }

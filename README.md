@@ -89,6 +89,7 @@ The operator console lets you:
 - Run the mocked sandboxed agents.
 - Review safe, approval-required, and blocked actions.
 - Approve gated actions.
+- Mock-execute safe and approved actions through the host broker.
 - Export the audit packet.
 
 The GUI is backed by the same Plywood CLI. It serves static files from `public/` and calls `bin/plywood.mjs` through `server.mjs`.
@@ -142,6 +143,7 @@ Approve a mocked action and export the audit packet:
 
 ```bash
 npm run plywood -- approve latest --action act-005 --actor demo-operator
+npm run plywood -- execute latest --actor demo-operator
 npm run plywood -- export-audit latest
 ```
 
@@ -165,6 +167,7 @@ plywood blueprint inspect [blueprint-id] [--json]
 plywood review [latest|run-id|run-dir|manifest.json] [--only safe|needs_approval|blocked] [--json]
 plywood approve [latest|run-id|run-dir] --action act-005 [--action act-018] [--actor operator]
 plywood approve latest --all-needs-approval [--actor operator]
+plywood execute [latest|run-id|run-dir] [--actor operator] [--json]
 plywood export-audit [latest|run-id|run-dir] [--out exports/my-run]
 ```
 
@@ -175,6 +178,7 @@ Plywood follows the SBX command model while keeping SBX behind Plywood:
 - `create` prepares a sandbox from a blueprint.
 - `run` starts or attaches to the sandbox interactively.
 - `exec` runs a non-interactive command or blueprint workflow.
+- `execute` mock-executes safe and approved manifest actions through the host broker and writes an execution ledger.
 
 With no blueprint id, Plywood reads the concrete default blueprint from `blueprint/default.json`.
 
@@ -194,6 +198,7 @@ The demo also models the intended sandbox boundary:
 - Agents call limited store tools instead of holding reusable credentials.
 - The host side owns credential access and returns only the results the agent needs.
 - Blocked actions remain non-executable and are included for audit visibility.
+- Execution writes `execution-ledger.json` and `execution-ledger.md` beside the manifest, audit packet, broker trace, and rollback plan.
 
 ## Brand Context
 

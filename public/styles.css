@@ -371,6 +371,7 @@ code {
 }
 
 .summary,
+.execution-panel,
 .actions-panel {
   padding: 24px;
 }
@@ -515,6 +516,7 @@ code {
 .summary-item dd {
   margin: 0;
   font-size: 0.95rem;
+  overflow-wrap: anywhere;
 }
 
 .toolbar {
@@ -705,6 +707,34 @@ code {
   display: grid;
   gap: 14px;
   margin-top: 18px;
+}
+
+.execution-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.execution-row {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 253, 248, 0.94);
+  border: 1px solid var(--line);
+}
+
+.execution-row-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.execution-row p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .action-card {
@@ -950,6 +980,7 @@ code {
   .context-sidebar,
   .context-editor-panel,
   .summary,
+  .execution-panel,
   .actions-panel,
   .review-grid .panel {
     padding: 18px;
@@ -972,7 +1003,8 @@ code {
   }
 
   .toolbar,
-  .action-head {
+  .action-head,
+  .execution-row-head {
     flex-direction: column;
     align-items: stretch;
   }

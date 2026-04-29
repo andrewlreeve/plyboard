@@ -100,7 +100,7 @@ export function exportAudit(reference, workspaceRoot, outDir = null) {
     fs.copyFileSync(path.join(sourceDir, file), path.join(targetDir, file));
   }
 
-  for (const optionalFile of ["approval-record.json", "approval-log.jsonl"]) {
+  for (const optionalFile of ["approval-record.json", "approval-log.jsonl", "execution-ledger.json", "execution-ledger.md"]) {
     const sourcePath = path.join(sourceDir, optionalFile);
     if (fs.existsSync(sourcePath)) {
       fs.copyFileSync(sourcePath, path.join(targetDir, optionalFile));
@@ -205,6 +205,197 @@ export function recordApproval(reference, workspaceRoot, { actionIds, allNeedsAp
   return approval;
 }
 
+export function executeRun(reference, workspaceRoot, { actor = "demo-operator" } = {}) {
+  const manifestPath = resolveManifestPath(reference, workspaceRoot);
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const runDir = path.dirname(manifestPath);
+  const startedAt = new Date().toISOString();
+  const ledgerEntries = manifest.actions.map((action, index) =>
+    buildExecutionEntry(action, {
+      actor,
+      index,
+      runId: manifest.run.id,
+      timestamp: startedAt
+    })
+  );
+  const completedAt = new Date().toISOString();
+  const summary = summarizeExecution(ledgerEntries);
+  const ledger = {
+    schema_version: "plywood.execution_ledger.v1",
+    run_id: manifest.run.id,
+    actor,
+    mode: "mocked_host_api_broker",
+    started_at: startedAt,
+    completed_at: completedAt,
+    secrets_shared_with_sandbox: manifest.sbx.secrets_shared_with_sandbox,
+    summary,
+    entries: ledgerEntries
+  };
+  const ledgerJson = JSON.stringify(ledger, null, 2);
+
+  const paths = {
+    ...manifest.artifacts,
+    execution_ledger_json: path.relative(workspaceRoot, path.join(runDir, "execution-ledger.json")),
+    execution_ledger_md: path.relative(workspaceRoot, path.join(runDir, "execution-ledger.md"))
+  };
+
+  const updatedManifest = {
+    ...manifest,
+    actions: manifest.actions.map((action) => {
+      const entry = ledgerEntries.find((item) => item.action_id === action.id);
+      return {
+        ...action,
+        execution: {
+          status: entry.status,
+          ledger_entry_id: entry.id,
+          executor: entry.executor,
+          executed_at: entry.status === "mock_executed" ? entry.completed_at : null,
+          reason: entry.reason
+        }
+      };
+    }),
+    execution: {
+      generated: true,
+      status: "completed",
+      mode: ledger.mode,
+      actor,
+      started_at: startedAt,
+      completed_at: completedAt,
+      summary,
+      path: paths.execution_ledger_json,
+      markdown_path: paths.execution_ledger_md,
+      sha256: sha256(ledgerJson)
+    },
+    artifacts: paths
+  };
+
+  const auditPacket = buildAuditPacket(updatedManifest);
+  const auditPacketJson = JSON.stringify(auditPacket, null, 2);
+  const finalManifest = {
+    ...updatedManifest,
+    audit_packet: {
+      ...updatedManifest.audit_packet,
+      sha256: sha256(auditPacketJson)
+    }
+  };
+
+  writeJson(path.join(runDir, "execution-ledger.json"), ledger);
+  fs.writeFileSync(path.join(runDir, "execution-ledger.md"), renderExecutionLedgerMarkdown(finalManifest, ledger));
+  writeJson(manifestPath, finalManifest);
+  fs.writeFileSync(path.join(runDir, "audit-packet.json"), `${auditPacketJson}\n`);
+  fs.writeFileSync(path.join(runDir, "audit-packet.md"), renderAuditPacketMarkdown(finalManifest, auditPacket));
+  const runLogPath = path.join(runDir, "run-log.jsonl");
+  const runLogPrefix =
+    fs.existsSync(runLogPath) && fs.statSync(runLogPath).size > 0 && !fs.readFileSync(runLogPath, "utf8").endsWith("\n")
+      ? "\n"
+      : "";
+  fs.appendFileSync(
+    runLogPath,
+    `${runLogPrefix}${JSON.stringify({
+      run_id: manifest.run.id,
+      at: completedAt,
+      level: "info",
+      event: "execution.completed",
+      message: `${summary.mock_executed} actions mock-executed, ${summary.skipped_unapproved} skipped, ${summary.blocked} blocked.`
+    })}\n`
+  );
+
+  return {
+    run_id: manifest.run.id,
+    status: "completed",
+    actor,
+    mode: ledger.mode,
+    summary,
+    ledger_path: paths.execution_ledger_json,
+    ledger_markdown_path: paths.execution_ledger_md,
+    ledger
+  };
+}
+
+function buildExecutionEntry(action, { actor, index, runId, timestamp }) {
+  const execution = classifyExecution(action);
+  return {
+    id: `exec-${String(index + 1).padStart(3, "0")}`,
+    run_id: runId,
+    action_id: action.id,
+    action_type: action.action_type,
+    resource: action.resource,
+    agent_id: action.agent_id,
+    tool: action.tool,
+    executor: action.tool || "shopify-api-broker",
+    actor,
+    policy_result: action.policy_result,
+    policy_rule: action.policy_rule,
+    policy_rule_name: action.policy_rule_name,
+    approval_id: action.approval?.approval_id || null,
+    status: execution.status,
+    reason: execution.reason,
+    started_at: timestamp,
+    completed_at: timestamp,
+    before: action.before,
+    after: action.after,
+    rollback_note: action.rollback_note,
+    broker_call: {
+      mode: "host_api_broker",
+      credential_location: "host_api_broker",
+      secret_material_returned_to_sandbox: false,
+      outbound_call_mocked: execution.status === "mock_executed",
+      scoped_to_action_id: action.id
+    }
+  };
+}
+
+function classifyExecution(action) {
+  if (action.policy_result === "blocked") {
+    return {
+      status: "blocked",
+      reason: "The safety policy blocked this action before execution."
+    };
+  }
+
+  if (action.policy_result === "needs_approval" && !action.approval) {
+    return {
+      status: "skipped_unapproved",
+      reason: "The action needs operator approval and no approval record was found."
+    };
+  }
+
+  if (action.policy_result === "needs_approval") {
+    return {
+      status: "mock_executed",
+      reason: `Approved by ${action.approval.actor}; mocked through the host API broker.`
+    };
+  }
+
+  return {
+    status: "mock_executed",
+    reason: "Safe action mock-executed automatically through the host API broker."
+  };
+}
+
+function summarizeExecution(entries) {
+  const summary = {
+    mock_executed: 0,
+    safe_executed: 0,
+    approved_executed: 0,
+    skipped_unapproved: 0,
+    blocked: 0,
+    total: entries.length
+  };
+
+  for (const entry of entries) {
+    summary[entry.status] += 1;
+    if (entry.status === "mock_executed" && entry.policy_result === "safe") {
+      summary.safe_executed += 1;
+    }
+    if (entry.status === "mock_executed" && entry.policy_result === "needs_approval") {
+      summary.approved_executed += 1;
+    }
+  }
+
+  return summary;
+}
+
 function buildAuditPacket(manifest) {
   return {
     generated_at: new Date().toISOString(),
@@ -228,6 +419,7 @@ function buildAuditPacket(manifest) {
     },
     proposed_actions: manifest.actions,
     approvals: manifest.approvals || [],
+    execution: manifest.execution || null,
     attestations: [
       "Docker SBX execution was mocked for demo scope.",
       "No API secret was shared with the sandbox.",
@@ -340,6 +532,69 @@ function renderAuditPacketMarkdown(manifest, auditPacket) {
         `- ${approval.id}: ${approval.status} by ${approval.actor} for ${approval.action_ids.join(", ")}`
       );
     }
+  }
+
+  lines.push(``, `## Execution`, ``);
+  if (manifest.execution?.generated) {
+    lines.push(
+      `- Status: ${manifest.execution.status}`,
+      `- Mode: ${manifest.execution.mode}`,
+      `- Actor: ${manifest.execution.actor}`,
+      `- Ledger: ${manifest.execution.markdown_path}`,
+      `- Mock executed: ${manifest.execution.summary.mock_executed}`,
+      `- Skipped unapproved: ${manifest.execution.summary.skipped_unapproved}`,
+      `- Blocked: ${manifest.execution.summary.blocked}`
+    );
+  } else {
+    lines.push(`- Not executed.`);
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function renderExecutionLedgerMarkdown(manifest, ledger) {
+  const lines = [
+    `# Plywood Execution Ledger`,
+    ``,
+    `Run: ${manifest.run.id}`,
+    `Blueprint: ${manifest.blueprint.name}`,
+    `Mode: ${ledger.mode}`,
+    `Actor: ${ledger.actor}`,
+    `Started: ${ledger.started_at}`,
+    `Completed: ${ledger.completed_at}`,
+    `Secrets shared with sandbox: ${ledger.secrets_shared_with_sandbox}`,
+    ``,
+    `## Summary`,
+    ``,
+    `- Mock executed: ${ledger.summary.mock_executed}`,
+    `- Safe executed: ${ledger.summary.safe_executed}`,
+    `- Approved executed: ${ledger.summary.approved_executed}`,
+    `- Skipped unapproved: ${ledger.summary.skipped_unapproved}`,
+    `- Blocked: ${ledger.summary.blocked}`,
+    `- Total: ${ledger.summary.total}`,
+    ``,
+    `## Entries`,
+    ``
+  ];
+
+  for (const entry of ledger.entries) {
+    lines.push(`### ${entry.action_id} ${entry.action_type}`);
+    lines.push(`Status: ${entry.status}`);
+    lines.push(`Resource: ${entry.resource}`);
+    lines.push(`Policy result: ${entry.policy_result}`);
+    lines.push(`Policy rule: ${entry.policy_rule_name || entry.policy_rule} (${entry.policy_rule})`);
+    if (entry.approval_id) {
+      lines.push(`Approval: ${entry.approval_id}`);
+    }
+    lines.push(`Executor: ${entry.executor}`);
+    lines.push(`Reason: ${entry.reason}`);
+    lines.push(`Before: ${entry.before}`);
+    lines.push(`After: ${entry.after}`);
+    lines.push(`Rollback: ${entry.rollback_note}`);
+    lines.push(
+      `Broker: ${entry.broker_call.mode}, credential location ${entry.broker_call.credential_location}, secrets returned to sandbox ${entry.broker_call.secret_material_returned_to_sandbox}`
+    );
+    lines.push(``);
   }
 
   return `${lines.join("\n")}\n`;

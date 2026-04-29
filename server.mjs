@@ -170,6 +170,16 @@ async function handleApiRequest(request, response, url) {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/execute") {
+    const body = await readJsonBody(request);
+    const reference = sanitizeText(body.reference, "latest");
+    const actor = sanitizeText(body.actor, "gui-operator");
+    const execution = await runPlywoodJson(["execute", reference, "--actor", actor, "--json"]);
+    const manifest = await runPlywoodJson(["review", reference, "--json"]);
+    sendJson(response, 200, { execution, manifest });
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/export-audit") {
     const body = await readJsonBody(request);
     const reference = sanitizeText(body.reference, "latest");

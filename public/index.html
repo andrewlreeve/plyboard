@@ -179,9 +179,22 @@
                 <div class="toolbar-actions">
                   <button id="approve-button" class="secondary-button" type="button">Approve Selected</button>
                   <button id="approve-all-button" class="secondary-button" type="button">Approve All Needing Review</button>
+                  <button id="execute-button" class="secondary-button" type="button">Execute Approved</button>
                   <button id="export-button" class="ghost-button" type="button">Export Review Packet</button>
                 </div>
               </div>
+            </section>
+
+            <section class="panel execution-panel fade-up" style="animation-delay: 260ms">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Mock Execution</p>
+                  <h2>Execution Ledger</h2>
+                </div>
+                <span id="execution-status" class="pill neutral">Not run</span>
+              </div>
+              <div id="execution-summary" class="summary-grid"></div>
+              <div id="execution-list" class="execution-list empty-state">No execution ledger yet.</div>
             </section>
 
             <section class="review-grid">

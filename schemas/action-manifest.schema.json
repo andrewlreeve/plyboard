@@ -97,6 +97,35 @@
           }
         }
       }
+    },
+    "execution": {
+      "type": "object",
+      "required": [
+        "generated",
+        "status",
+        "mode",
+        "summary"
+      ],
+      "properties": {
+        "generated": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "object",
+          "required": [
+            "mock_executed",
+            "skipped_unapproved",
+            "blocked",
+            "total"
+          ]
+        }
+      }
     }
   }
 }

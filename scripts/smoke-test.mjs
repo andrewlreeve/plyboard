@@ -184,9 +184,45 @@ try {
 }
 assert.equal(blockedApprovalFailed, true);
 
+const executionOutput = run(["execute", "latest", "--actor", "smoke-test"]);
+assert.match(executionOutput, /Execution ledger generated/);
+assert.match(executionOutput, /Mock executed:/);
+assert.match(executionOutput, /Skipped unapproved:/);
+
+const executedManifest = JSON.parse(fs.readFileSync(path.join(root, latestRunDir, "manifest.json"), "utf8"));
+const executionLedgerPath = path.join(root, latestRunDir, "execution-ledger.json");
+const executionLedgerMarkdownPath = path.join(root, latestRunDir, "execution-ledger.md");
+const executionLedger = JSON.parse(fs.readFileSync(executionLedgerPath, "utf8"));
+assert.ok(fs.existsSync(executionLedgerMarkdownPath));
+assert.equal(executedManifest.execution.generated, true);
+assert.equal(executedManifest.execution.summary.mock_executed, manifest.policy_summary.safe + 1);
+assert.equal(executionLedger.entries.length, manifest.actions.length);
+assert.equal(
+  executionLedger.entries.find((entry) => entry.action_id === "act-001").status,
+  "mock_executed"
+);
+assert.equal(
+  executionLedger.entries.find((entry) => entry.action_id === "act-005").status,
+  "mock_executed"
+);
+assert.equal(
+  executionLedger.entries.find((entry) => entry.action_id === "act-018").status,
+  "skipped_unapproved"
+);
+assert.equal(
+  executionLedger.entries.find((entry) => entry.action_id === "act-009").status,
+  "blocked"
+);
+assert.equal(
+  executionLedger.entries.find((entry) => entry.action_id === "act-005").broker_call.secret_material_returned_to_sandbox,
+  false
+);
+
 const exportOutput = run(["export-audit", "latest", "--out", "exports/smoke"]);
 assert.match(exportOutput, /Audit packet exported/);
 assert.ok(fs.existsSync(path.join(root, "exports", "smoke", "audit-packet.md")));
 assert.ok(fs.existsSync(path.join(root, "exports", "smoke", "approval-record.json")));
+assert.ok(fs.existsSync(path.join(root, "exports", "smoke", "execution-ledger.json")));
+assert.ok(fs.existsSync(path.join(root, "exports", "smoke", "execution-ledger.md")));
 
 console.log("Smoke test passed.");

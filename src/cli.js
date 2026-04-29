@@ -4,7 +4,7 @@ import { parseArgs, getRepeatedFlag, normalizeSafetyMode, normalizeTarget, isHel
 import { getDefaultBlueprintId, listBlueprints, loadBlueprint, requireBlueprint, requireDefaultBlueprint } from "./blueprint.js";
 import { getContextStatus, initDefaultContext, resolveContextMounts } from "./context.js";
 import { createProductReadinessRun } from "./mock-runner.js";
-import { exportAudit, loadRun, recordApproval, writeRunArtifacts } from "./artifacts.js";
+import { executeRun, exportAudit, loadRun, recordApproval, writeRunArtifacts } from "./artifacts.js";
 import { createBlueprintSandbox, execSandboxCommand, runSandbox } from "./sandbox.js";
 import {
   formatApprovalResult,
@@ -12,6 +12,7 @@ import {
   formatBlueprintList,
   formatCreateSandboxResult,
   formatExecSandboxResult,
+  formatExecutionResult,
   formatContextInitResult,
   formatContextStatus,
   formatExportResult,
@@ -112,6 +113,20 @@ export async function runCli(argv, io = process) {
       io.stdout.write(`${JSON.stringify(approval, null, 2)}\n`);
     } else {
       io.stdout.write(`${formatApprovalResult(approval)}\n`);
+    }
+    return;
+  }
+
+  if (command === "execute") {
+    const reference = subcommand || "latest";
+    const execution = executeRun(reference, workspaceRoot, {
+      actor: String(flags.actor || "demo-operator")
+    });
+
+    if (isJsonFlag(flags)) {
+      io.stdout.write(`${JSON.stringify(execution, null, 2)}\n`);
+    } else {
+      io.stdout.write(`${formatExecutionResult(execution)}\n`);
     }
     return;
   }
