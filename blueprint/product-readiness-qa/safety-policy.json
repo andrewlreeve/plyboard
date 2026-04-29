@@ -1,0 +1,105 @@
+{
+  "schema_version": "plywood.safety_policy.v1",
+  "id": "product-readiness-qa.default",
+  "name": "Product Readiness QA Safety Policy",
+  "version": "0.1.0",
+  "description": "Host-enforced policy for classifying Product Readiness QA manifest actions before anything can affect commerce systems.",
+  "default_result": "needs_approval",
+  "default_reason": "Actions that are not explicitly allowlisted default to operator approval.",
+  "rules": [
+    {
+      "id": "blocked-destructive-action-types",
+      "name": "Blocked destructive action types",
+      "result": "blocked",
+      "match": {
+        "action_type": [
+          "product.media_delete",
+          "inventory.decrement",
+          "theme.publish.production",
+          "customer.email_send",
+          "payment.capture",
+          "refund.create",
+          "admin_user.create",
+          "webhook.create"
+        ]
+      },
+      "reason": "This action type is destructive, external, or outside the Product Readiness QA safety envelope."
+    },
+    {
+      "id": "blocked-destructive-write-scopes",
+      "name": "Blocked destructive write scopes",
+      "result": "blocked",
+      "match": {
+        "write_scope": [
+          "destructive",
+          "external"
+        ]
+      },
+      "reason": "Destructive and external side effects are blocked before approval can be requested."
+    },
+    {
+      "id": "read-only-mode-write-gate",
+      "name": "Read-only mode write gate",
+      "result": "needs_approval",
+      "match": {
+        "safety_mode": "read-only",
+        "not": {
+          "write_scope": [
+            "read",
+            "audit",
+            "recommendation"
+          ]
+        }
+      },
+      "reason": "Read-only mode only permits read, audit, and recommendation scopes without approval."
+    },
+    {
+      "id": "approval-required-commerce-writes",
+      "name": "Approval-required commerce writes",
+      "result": "needs_approval",
+      "match": {
+        "action_type": [
+          "product.publish",
+          "product.publish.ready",
+          "collection.publish",
+          "collection.sort_update",
+          "product.update_price",
+          "inventory.update"
+        ]
+      },
+      "reason": "Publishing, live merchandising, pricing, and inventory changes require operator approval."
+    },
+    {
+      "id": "production-adjacent-write-gate",
+      "name": "Production-adjacent write gate",
+      "result": "needs_approval",
+      "match": {
+        "target_environment": "production",
+        "write_scope": [
+          "live",
+          "production",
+          "staging"
+        ]
+      },
+      "reason": "Production-adjacent writes require approval in production runs."
+    },
+    {
+      "id": "safe-draft-and-audit-actions",
+      "name": "Safe draft and audit actions",
+      "result": "safe",
+      "match": {
+        "action_type": [
+          "product.read",
+          "product.enrichment_draft",
+          "product.seo_draft",
+          "product.image_alt_text_draft",
+          "product.media_issue_flag",
+          "product.publish_readiness_check",
+          "storefront.product_quality_audit",
+          "collection.merchandising_recommendation"
+        ]
+      },
+      "reason": "Draft enrichment, read-only checks, audit flags, and merchandising recommendations do not directly modify live production state."
+    }
+  ]
+}

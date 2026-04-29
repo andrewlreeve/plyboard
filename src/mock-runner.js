@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { classifyActions, summarizePolicy } from "./policy.js";
+import { snapshotSafetyPolicy } from "./safety-policy.js";
 
 export function createProductReadinessRun({ blueprint, targetEnvironment, safetyMode, contextMounts }) {
   const createdAt = new Date().toISOString();
@@ -10,7 +11,8 @@ export function createProductReadinessRun({ blueprint, targetEnvironment, safety
   const productFindings = buildProductFindings();
   const storefrontFindings = buildStorefrontFindings();
   const rawActions = buildProposedActions();
-  const actions = classifyActions(rawActions, { targetEnvironment, safetyMode });
+  const safetyPolicy = snapshotSafetyPolicy(blueprint.safetyPolicy);
+  const actions = classifyActions(rawActions, { targetEnvironment, safetyMode }, blueprint.safetyPolicy);
 
   return {
     schema_version: "plywood.action_manifest.v1",
@@ -73,6 +75,7 @@ export function createProductReadinessRun({ blueprint, targetEnvironment, safety
           : undefined
       }))
     },
+    safety_policy: safetyPolicy,
     policy_summary: summarizePolicy(actions),
     product_findings: productFindings,
     storefront_findings: storefrontFindings,
@@ -217,7 +220,7 @@ function buildStorefrontFindings() {
         {
           name: "Theme safety",
           result: "blocked",
-          detail: "Theme publish is outside this blueprint and should remain blocked."
+          detail: "Theme publish is outside this blueprint and the host policy classifies it as blocked."
         }
       ]
     }

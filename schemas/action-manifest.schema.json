@@ -9,6 +9,7 @@
     "blueprint",
     "agents",
     "sbx",
+    "safety_policy",
     "policy_summary",
     "product_findings",
     "storefront_findings",
@@ -47,6 +48,23 @@
         "secrets_shared_with_sandbox",
         "api_access"
       ]
+    },
+    "safety_policy": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "plywood.safety_policy.v1"
+        },
+        "id": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      }
     },
     "policy_summary": {
       "type": "object",

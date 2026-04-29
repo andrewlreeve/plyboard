@@ -100,35 +100,6 @@
       "raw .env files"
     ]
   },
-  "policy": {
-    "safe": [
-      "product.read",
-      "product.enrichment_draft",
-      "product.seo_draft",
-      "product.image_alt_text_draft",
-      "product.media_issue_flag",
-      "product.publish_readiness_check",
-      "storefront.product_quality_audit",
-      "collection.merchandising_recommendation"
-    ],
-    "needsApproval": [
-      "product.publish",
-      "product.publish.ready",
-      "collection.publish",
-      "collection.sort_update",
-      "product.update_price",
-      "inventory.update"
-    ],
-    "blocked": [
-      "product.media_delete",
-      "inventory.decrement",
-      "theme.publish.production",
-      "customer.email_send",
-      "payment.capture",
-      "refund.create",
-      "admin_user.create",
-      "webhook.create"
-    ]
-  },
+  "safetyPolicy": "safety-policy.json",
   "manifestSchema": "schemas/action-manifest.schema.json"
 }

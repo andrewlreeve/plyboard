@@ -77,8 +77,7 @@ export function initDefaultContext(workspaceRoot, { force = false } = {}) {
   const contextDir = path.join(workspaceRoot, DEFAULT_CONTEXT_DIR);
   const files = {
     "AGENTS.md": starterAgentsMarkdown(),
-    "seo-guidelines.md": starterSeoMarkdown(),
-    "safety-policy.md": starterSafetyMarkdown()
+    "seo-guidelines.md": starterSeoMarkdown()
   };
 
   fs.mkdirSync(contextDir, { recursive: true });
@@ -246,7 +245,7 @@ These files are mounted read-only into every Plywood sandbox at ${DEFAULT_CONTEX
 - Act like a careful ecommerce operator.
 - Prefer draft-safe edits and audit recommendations.
 - Make proposed production changes reviewable before execution.
-- Explain why each action is safe, needs approval, or blocked.
+- Explain the operational reason for each proposed action; Plywood classifies safety from the host-side policy.
 - Never request raw API secrets inside the sandbox.
 
 ## Brand Voice
@@ -263,14 +262,5 @@ function starterSeoMarkdown() {
 - SEO titles should include the product type and strongest search modifier.
 - Meta descriptions should be plain-language summaries, not keyword stuffing.
 - Do not use launch language for products that are still marked as draft.
-`;
-}
-
-function starterSafetyMarkdown() {
-  return `# Safety Policy
-
-- Safe: draft enrichment, SEO drafts, image alt text drafts, media issue flags, and audit recommendations.
-- Needs approval: publishing, live merchandising changes, pricing, inventory, and collection publication.
-- Blocked: media deletion, theme publishing, customer messaging, payment/refund actions, admin user changes, and webhook creation.
 `;
 }

@@ -186,6 +186,8 @@ Plywood starts careful and stays careful.
 - Risky work needs approval, like publishing products, changing collection order, updating prices, or editing inventory.
 - Dangerous work is blocked, like deleting product media, sending customer emails, capturing payments, issuing refunds, or publishing a production theme.
 
+Safety enforcement is host-side and structured. Product Readiness QA uses `blueprint/product-readiness-qa/safety-policy.json`, not a markdown instruction file, as the source of truth for action classification. Every run records the policy id, version, source path, SHA256, default result, and matched rule ids in the manifest and audit packet.
+
 The demo also models the intended sandbox boundary:
 
 - Raw Shopify/API secrets are never passed into the sandbox.

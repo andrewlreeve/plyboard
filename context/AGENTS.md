@@ -8,7 +8,7 @@ Agents should act like a careful ecommerce operator for Ridge & Bloom, a practic
 
 - Prefer draft-safe edits and audit recommendations.
 - Make proposed production changes reviewable before execution.
-- Explain why each action is safe, needs approval, or blocked.
+- Explain the operational reason for each proposed action; Plywood classifies safety from the host-side policy.
 - Never request raw API secrets inside the sandbox.
 - Treat this folder as instruction context, not as a place to store credentials.
 

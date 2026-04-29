@@ -1,94 +1,44 @@
-export const SAFE_ACTIONS = new Set([
-  "product.read",
-  "product.enrichment_draft",
-  "product.seo_draft",
-  "product.image_alt_text_draft",
-  "product.media_issue_flag",
-  "product.publish_readiness_check",
-  "storefront.product_quality_audit",
-  "collection.merchandising_recommendation"
-]);
+const FALLBACK_POLICY = {
+  schema_version: "plywood.safety_policy.v1",
+  id: "fallback.needs_approval",
+  name: "Fallback Approval Policy",
+  version: "0.1.0",
+  default_result: "needs_approval",
+  default_reason: "No structured safety policy was attached, so the action defaults to operator approval.",
+  rules: []
+};
 
-export const NEEDS_APPROVAL_ACTIONS = new Set([
-  "product.publish",
-  "product.publish.ready",
-  "collection.publish",
-  "collection.sort_update",
-  "product.update_price",
-  "inventory.update"
-]);
-
-export const BLOCKED_ACTIONS = new Set([
-  "product.media_delete",
-  "inventory.decrement",
-  "theme.publish.production",
-  "customer.email_send",
-  "payment.capture",
-  "refund.create",
-  "admin_user.create",
-  "webhook.create"
-]);
-
-const WRITE_SCOPES_ALLOWED_IN_READ_ONLY = new Set(["read", "audit", "recommendation"]);
-
-export function classifyActions(actions, runContext) {
+export function classifyActions(actions, runContext, safetyPolicy = null) {
+  const policy = safetyPolicy || runContext.safetyPolicy || FALLBACK_POLICY;
   return actions.map((action) => ({
     ...action,
-    ...classifyAction(action, runContext)
+    ...classifyAction(action, runContext, policy)
   }));
 }
 
-export function classifyAction(action, runContext) {
-  const actionType = action.action_type;
-  const writeScope = action.write_scope || "unknown";
+export function classifyAction(action, runContext, safetyPolicy = FALLBACK_POLICY) {
+  const subject = {
+    ...action,
+    target_environment: runContext.targetEnvironment,
+    safety_mode: runContext.safetyMode
+  };
 
-  if (BLOCKED_ACTIONS.has(actionType) || writeScope === "destructive" || writeScope === "external") {
-    return {
-      policy_result: "blocked",
-      policy_rule: "blocked_action_or_destructive_scope",
-      reasoning: `${actionType} is destructive, external, or outside the Product Readiness QA blueprint safety envelope.`
-    };
-  }
-
-  if (runContext.safetyMode === "read-only" && !WRITE_SCOPES_ALLOWED_IN_READ_ONLY.has(writeScope)) {
-    return {
-      policy_result: "needs_approval",
-      policy_rule: "read_only_mode_requires_approval_for_writes",
-      reasoning: `${actionType} proposes a ${writeScope} write while the run is in read-only mode.`
-    };
-  }
-
-  if (NEEDS_APPROVAL_ACTIONS.has(actionType)) {
-    return {
-      policy_result: "needs_approval",
-      policy_rule: "approval_required_action_type",
-      reasoning: `${actionType} can affect publish state, live merchandising, pricing, or inventory and requires operator approval.`
-    };
-  }
-
-  if (
-    runContext.targetEnvironment === "production" &&
-    ["live", "production", "staging"].includes(writeScope)
-  ) {
-    return {
-      policy_result: "needs_approval",
-      policy_rule: "production_write_requires_approval",
-      reasoning: `${actionType} targets a production-adjacent write scope and requires approval.`
-    };
-  }
-
-  if (SAFE_ACTIONS.has(actionType)) {
-    return {
-      policy_result: "safe",
-      policy_rule: "safe_action_allowlist",
-      reasoning: `${actionType} is allowlisted for this blueprint and does not directly modify live production state.`
-    };
+  for (const rule of safetyPolicy.rules) {
+    if (matchesRule(rule, subject)) {
+      return {
+        policy_result: rule.result,
+        policy_rule: rule.id,
+        policy_rule_name: rule.name,
+        reasoning: rule.reason
+      };
+    }
   }
 
   return {
-    policy_result: "needs_approval",
-    policy_rule: "unknown_action_defaults_to_approval",
-    reasoning: `${actionType} is not in the allowlist and defaults to approval before execution.`
+    policy_result: safetyPolicy.default_result,
+    policy_rule: `${safetyPolicy.id}.default`,
+    policy_rule_name: "Default policy result",
+    reasoning: safetyPolicy.default_reason || "No explicit safety rule matched this action."
   };
 }
 
@@ -105,4 +55,33 @@ export function summarizePolicy(actions) {
   }
 
   return summary;
+}
+
+function matchesRule(rule, subject) {
+  return matchesObject(rule.match, subject);
+}
+
+function matchesObject(match, subject) {
+  for (const [key, expected] of Object.entries(match)) {
+    if (key === "not") {
+      if (matchesObject(expected, subject)) {
+        return false;
+      }
+      continue;
+    }
+
+    if (!matchesValue(subject[key], expected)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function matchesValue(actual, expected) {
+  if (Array.isArray(expected)) {
+    return expected.length > 0 && expected.includes(actual);
+  }
+
+  return actual === expected;
 }

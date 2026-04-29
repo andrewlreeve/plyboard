@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { packageRoot } from "./paths.js";
+import { buildLegacySafetyPolicy, loadSafetyPolicy } from "./safety-policy.js";
 
 const blueprintRoot = path.join(packageRoot, "blueprint");
 const defaultBlueprintPath = path.join(blueprintRoot, "default.json");
@@ -29,10 +30,7 @@ export function loadBlueprint(id) {
 
   const defaultConfig = readDefaultBlueprintConfig();
   if (defaultConfig.id === id) {
-    return {
-      ...defaultConfig,
-      path: defaultBlueprintPath
-    };
+    return hydrateBlueprint(defaultConfig, defaultBlueprintPath, blueprintRoot);
   }
 
   return loadBlueprintFromDirectory(id);
@@ -45,10 +43,7 @@ function loadBlueprintFromDirectory(id) {
   }
 
   const raw = fs.readFileSync(blueprintPath, "utf8");
-  return {
-    ...JSON.parse(raw),
-    path: blueprintPath
-  };
+  return hydrateBlueprint(JSON.parse(raw), blueprintPath, path.dirname(blueprintPath));
 }
 
 export function getDefaultBlueprintId() {
@@ -86,10 +81,7 @@ function loadDefaultBlueprint() {
     return loadBlueprintFromDirectory(config.defaultBlueprint);
   }
 
-  return {
-    ...config,
-    path: defaultBlueprintPath
-  };
+  return hydrateBlueprint(config, defaultBlueprintPath, blueprintRoot);
 }
 
 function readDefaultBlueprintConfig() {
@@ -98,4 +90,27 @@ function readDefaultBlueprintConfig() {
   }
 
   return JSON.parse(fs.readFileSync(defaultBlueprintPath, "utf8"));
+}
+
+function hydrateBlueprint(config, blueprintPath, blueprintDir) {
+  const blueprint = {
+    ...config,
+    path: blueprintPath
+  };
+
+  if (typeof config.safetyPolicy === "string" && config.safetyPolicy.trim()) {
+    const policyPath = path.relative(packageRoot, path.resolve(blueprintDir, config.safetyPolicy));
+    blueprint.safetyPolicy = loadSafetyPolicy(policyPath, packageRoot);
+  } else if (config.policy && hasLegacyPolicyRules(config.policy)) {
+    blueprint.safetyPolicy = buildLegacySafetyPolicy(config.policy, {
+      id: `${config.id}.legacy`,
+      name: `${config.name} Legacy Safety Policy`
+    });
+  }
+
+  return blueprint;
+}
+
+function hasLegacyPolicyRules(policy) {
+  return ["safe", "needsApproval", "blocked"].some((key) => Array.isArray(policy[key]) && policy[key].length > 0);
 }

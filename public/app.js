@@ -38,6 +38,9 @@ const elements = {
   mountList: document.querySelector("#mount-list"),
   mountSummary: document.querySelector("#mount-summary"),
   mountCount: document.querySelector("#mount-count"),
+  safetyRuleCount: document.querySelector("#safety-rule-count"),
+  safetyPolicySummary: document.querySelector("#safety-policy-summary"),
+  safetyRuleList: document.querySelector("#safety-rule-list"),
   contextSummary: document.querySelector("#context-summary"),
   contextStatusPill: document.querySelector("#context-status-pill"),
   productFindings: document.querySelector("#product-findings"),
@@ -530,6 +533,7 @@ function renderSummary() {
           ]
         : []
     );
+    renderSafetyPolicy(currentSafetyPolicy());
     elements.statSafe.textContent = "0";
     elements.statApproval.textContent = "0";
     elements.statBlocked.textContent = "0";
@@ -568,6 +572,7 @@ function renderSummary() {
   }
 
   renderMountList(manifest.sbx.mounted_context || []);
+  renderSafetyPolicy(currentSafetyPolicy());
 }
 
 function renderFindings() {
@@ -704,7 +709,10 @@ function renderActions() {
     risk.textContent = action.risk;
     risk.className = `pill action-risk ${riskClass(action.risk)}`;
 
-    fragment.querySelector(".action-meta").innerHTML = [`<span>Suggested by ${formatAgentName(action.agent_id)}</span>`].join("");
+    fragment.querySelector(".action-meta").innerHTML = [
+      `<span>Suggested by ${formatAgentName(action.agent_id)}</span>`,
+      `<span>Safety rule: ${action.policy_rule_name || action.policy_rule || "Policy default"}</span>`
+    ].join("");
 
     fragment.querySelector(".action-before").textContent = action.before;
     fragment.querySelector(".action-after").textContent = action.after;
@@ -876,6 +884,28 @@ function formatPolicy(policy) {
   );
 }
 
+function formatRuleMatch(match) {
+  if (!match || typeof match !== "object") {
+    return "match: any";
+  }
+
+  return Object.entries(match)
+    .map(([key, value]) => `${key}: ${formatRuleMatchValue(value)}`)
+    .join(" | ");
+}
+
+function formatRuleMatchValue(value) {
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  if (value && typeof value === "object") {
+    return `{ ${formatRuleMatch(value)} }`;
+  }
+
+  return String(value);
+}
+
 function riskClass(value) {
   return ["low", "medium", "high", "critical"].includes(value) ? value : "neutral";
 }
@@ -907,6 +937,55 @@ function renderMountList(mounts) {
     tag.textContent = formatMountName(mount.source_path);
     elements.mountList.append(tag);
   }
+}
+
+function renderSafetyPolicy(policy) {
+  elements.safetyRuleList.innerHTML = "";
+
+  if (!policy) {
+    elements.safetyRuleCount.textContent = "No policy";
+    elements.safetyRuleCount.className = "pill blocked";
+    elements.safetyPolicySummary.textContent = "No structured host-side safety policy is attached to this blueprint.";
+    elements.safetyRuleList.classList.add("empty-state");
+    elements.safetyRuleList.textContent = "Actions default to review when no policy is available.";
+    return;
+  }
+
+  const rules = Array.isArray(policy.rules) ? policy.rules : [];
+  elements.safetyRuleCount.textContent = `${rules.length} rule${rules.length === 1 ? "" : "s"}`;
+  elements.safetyRuleCount.className = "pill safe";
+  elements.safetyPolicySummary.textContent = `${policy.name} classifies actions from ${policy.path || "the active blueprint"}. Default: ${formatPolicy(policy.default_result)}.`;
+  elements.safetyRuleList.classList.remove("empty-state");
+
+  for (const rule of rules) {
+    const card = document.createElement("div");
+    card.className = "safety-rule-card";
+
+    const head = document.createElement("div");
+    head.className = "safety-rule-head";
+
+    const title = document.createElement("strong");
+    title.textContent = rule.name;
+
+    const pill = document.createElement("span");
+    pill.className = `pill ${rule.result}`;
+    pill.textContent = formatPolicy(rule.result);
+
+    head.append(title, pill);
+
+    const reason = document.createElement("p");
+    reason.textContent = rule.reason;
+
+    const match = document.createElement("code");
+    match.textContent = formatRuleMatch(rule.match);
+
+    card.append(head, reason, match);
+    elements.safetyRuleList.append(card);
+  }
+}
+
+function currentSafetyPolicy() {
+  return state.manifest?.safety_policy || state.activeBlueprint?.safetyPolicy || null;
 }
 
 function formatTimestamp(value) {

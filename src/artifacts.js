@@ -219,6 +219,7 @@ function buildAuditPacket(manifest) {
       tools_used: agent.tools_used
     })),
     sbx: manifest.sbx,
+    safety_policy: manifest.safety_policy || null,
     policy_summary: manifest.policy_summary,
     context_mounts: manifest.sbx.mounted_context,
     findings: {
@@ -247,6 +248,25 @@ function renderAuditPacketMarkdown(manifest, auditPacket) {
     `Safety mode: ${manifest.run.safety_mode}`,
     `Secrets shared with sandbox: ${manifest.sbx.secrets_shared_with_sandbox}`,
     ``,
+    `## Safety Policy`,
+    ``
+  ];
+
+  if (manifest.safety_policy) {
+    lines.push(
+      `- ID: ${manifest.safety_policy.id}`,
+      `- Version: ${manifest.safety_policy.version}`,
+      `- Source: ${manifest.safety_policy.path}`,
+      `- SHA256: ${manifest.safety_policy.sha256}`,
+      `- Default result: ${manifest.safety_policy.default_result}`,
+      `- Rules: ${manifest.safety_policy.rules.length}`,
+      ``
+    );
+  } else {
+    lines.push(`- No structured safety policy snapshot recorded.`, ``);
+  }
+
+  lines.push(
     `## Policy Summary`,
     ``,
     `- Safe: ${manifest.policy_summary.safe}`,
@@ -256,7 +276,7 @@ function renderAuditPacketMarkdown(manifest, auditPacket) {
     ``,
     `## Agents`,
     ``
-  ];
+  );
 
   for (const agent of auditPacket.agents) {
     lines.push(`- ${agent.name}: ${agent.status} via ${agent.runtime_blueprint}`);
@@ -301,6 +321,7 @@ function renderAuditPacketMarkdown(manifest, auditPacket) {
   for (const action of manifest.actions) {
     lines.push(`### ${action.id} ${action.action_type}`);
     lines.push(`Policy result: ${action.policy_result}`);
+    lines.push(`Policy rule: ${action.policy_rule_name || action.policy_rule} (${action.policy_rule})`);
     lines.push(`Resource: ${action.resource}`);
     lines.push(`Risk: ${action.risk}`);
     lines.push(`Before: ${action.before}`);

@@ -27,8 +27,8 @@ Agents should act like a careful ecommerce operator for Ridge & Bloom, a practic
 - Products should be assigned to the most specific relevant collection.
 - Live collection sort updates require approval.
 
-## Safety Preferences
+## Operating Preferences
 
-- Draft enrichment, SEO drafts, image alt text drafts, media issue flags, and audit recommendations are acceptable safe actions.
-- Publishing, pricing, inventory, collection publication, and live sort changes require approval.
-- Media deletion, customer messaging, payment/refund actions, admin user changes, theme publishing, and webhook creation are blocked.
+- Prefer draft enrichment, audit notes, and merchandising recommendations over direct live-store changes.
+- Explain the operational impact of each recommendation so Plywood can classify it against the host-side safety policy.
+- Do not request raw API secrets or reusable commerce credentials.

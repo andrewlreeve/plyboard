@@ -181,6 +181,9 @@ export function formatBlueprintInspect(blueprint) {
   if (blueprint.runtime.agentAdapter) {
     lines.push(`Runtime agent adapter: ${blueprint.runtime.agentAdapter}`);
   }
+  if (blueprint.safetyPolicy) {
+    lines.push(`Safety policy: ${blueprint.safetyPolicy.id} (${blueprint.safetyPolicy.rules.length} rules)`);
+  }
   lines.push(`Credential owner: ${blueprint.secretsPolicy.credentialOwner}`);
   lines.push(`Manifest schema: ${blueprint.manifestSchema}`);
 
@@ -195,6 +198,7 @@ export function formatRunSummary(manifest) {
     `Agents completed: ${manifest.agents.length}/${manifest.agents.length}`,
     `Target environment: ${manifest.run.target_environment}`,
     `Safety mode: ${manifest.run.safety_mode}`,
+    `Safety policy: ${manifest.safety_policy ? `${manifest.safety_policy.id} (${manifest.safety_policy.rules.length} rules)` : "not recorded"}`,
     `Secrets shared with sandbox: ${manifest.sbx.secrets_shared_with_sandbox}`,
     `Policy: ${manifest.policy_summary.safe} safe, ${manifest.policy_summary.needs_approval} needs approval, ${manifest.policy_summary.blocked} blocked`,
     `Artifacts: ${manifest.artifacts.run_dir}`,
@@ -257,6 +261,7 @@ export function formatReview(manifest, { only = null } = {}) {
     `Status: ${manifest.run.status}`,
     `Target environment: ${manifest.run.target_environment}`,
     `Safety mode: ${manifest.run.safety_mode}`,
+    `Safety policy: ${manifest.safety_policy ? `${manifest.safety_policy.id} (${manifest.safety_policy.rules.length} rules)` : "not recorded"}`,
     `Agents completed: ${manifest.agents.length}/${manifest.agents.length}`,
     `Secrets shared with sandbox: ${manifest.sbx.secrets_shared_with_sandbox}`,
     `Policy: ${manifest.policy_summary.safe} safe | ${manifest.policy_summary.needs_approval} needs approval | ${manifest.policy_summary.blocked} blocked`,
@@ -350,7 +355,7 @@ function formatAction(action) {
     `- [${action.policy_result}] ${action.id} ${action.action_type} on ${action.resource}`,
     `  Agent/tool: ${action.agent_id} / ${action.tool}`,
     `  Risk: ${action.risk}`,
-    `  Policy rule: ${action.policy_rule}`,
+    `  Policy rule: ${action.policy_rule_name || action.policy_rule} (${action.policy_rule})`,
     `  Before: ${action.before}`,
     `  After: ${action.after}`,
     `  Reasoning: ${action.reasoning}`,

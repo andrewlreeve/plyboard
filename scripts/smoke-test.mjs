@@ -30,6 +30,11 @@ assert.match(inspectOutput, /Secrets shared with sandbox: false/);
 const productBlueprintOutput = run(["blueprint", "inspect", "product-readiness-qa"]);
 assert.match(productBlueprintOutput, /Product Readiness QA Blueprint/);
 assert.match(productBlueprintOutput, /Catalog QA Agent/);
+assert.match(productBlueprintOutput, /Safety policy: product-readiness-qa.default/);
+
+const productBlueprintJson = JSON.parse(run(["blueprint", "inspect", "product-readiness-qa", "--json"]));
+assert.equal(productBlueprintJson.safetyPolicy.id, "product-readiness-qa.default");
+assert.equal(productBlueprintJson.safetyPolicy.rules.length, 6);
 
 const contextStatusOutput = run(["context", "status"]);
 assert.match(contextStatusOutput, /Default context: ready/);
@@ -127,6 +132,8 @@ const latestRunDir = fs.readFileSync(path.join(root, ".plywood", "latest-run"), 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, latestRunDir, "manifest.json"), "utf8"));
 
 assert.equal(manifest.blueprint.id, "product-readiness-qa");
+assert.equal(manifest.safety_policy.id, "product-readiness-qa.default");
+assert.equal(manifest.safety_policy.rules.length, 6);
 assert.equal(manifest.sbx.secrets_shared_with_sandbox, false);
 assert.equal(manifest.sbx.api_access.sandbox_receives_raw_credentials, false);
 assert.equal(manifest.product_findings.length, 3);
@@ -134,6 +141,15 @@ assert.equal(manifest.storefront_findings.length, 1);
 assert.ok(manifest.policy_summary.safe > 0);
 assert.ok(manifest.policy_summary.needs_approval > 0);
 assert.ok(manifest.policy_summary.blocked > 0);
+assert.ok(manifest.actions.every((action) => action.policy_rule && action.policy_rule_name));
+assert.equal(
+  manifest.actions.find((action) => action.id === "act-009").policy_rule,
+  "blocked-destructive-action-types"
+);
+assert.equal(
+  manifest.actions.find((action) => action.id === "act-005").policy_rule,
+  "approval-required-commerce-writes"
+);
 assert.ok(
   manifest.sbx.mounted_context.some(
     (mount) =>
@@ -154,6 +170,7 @@ assert.ok(
 const blockedReview = run(["review", "latest", "--only", "blocked"]);
 assert.match(blockedReview, /product.media_delete/);
 assert.match(blockedReview, /theme.publish.production/);
+assert.match(blockedReview, /Safety policy: product-readiness-qa.default/);
 
 const approvalOutput = run(["approve", "latest", "--action", "act-005", "--actor", "smoke-test"]);
 assert.match(approvalOutput, /Approval recorded/);

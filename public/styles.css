@@ -452,6 +452,51 @@ code {
   font-size: 0.84rem;
 }
 
+.safety-rule-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.safety-rule-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(29, 43, 42, 0.04);
+  border: 1px solid rgba(29, 43, 42, 0.08);
+}
+
+.safety-rule-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.safety-rule-head strong {
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.safety-rule-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.safety-rule-card code {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
 .summary-item {
   padding: 14px 16px;
   border-radius: 16px;
