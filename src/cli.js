@@ -121,7 +121,7 @@ export async function runCli(argv, io = process) {
 
 function handleRunCommand({ reference, flags, io, workspaceRoot }) {
   const sandboxReference = resolveSandboxReference(reference);
-  ensureSandboxExists({ reference: sandboxReference, flags, workspaceRoot });
+  ensureSandboxExists({ requested: reference, sandboxName: sandboxReference, flags, workspaceRoot });
   const result = runSandbox({ reference: sandboxReference, flags, workspaceRoot });
   if (isJsonFlag(flags)) {
     io.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -136,8 +136,8 @@ function handleRunCommand({ reference, flags, io, workspaceRoot }) {
 
 function handleExecCommand({ reference, commandArgs, flags, io, workspaceRoot }) {
   if (commandArgs.length > 0) {
-    const sandboxReference = reference || getDefaultBlueprintId();
-    ensureSandboxExists({ reference: sandboxReference, flags, workspaceRoot });
+    const sandboxReference = resolveSandboxReference(reference);
+    ensureSandboxExists({ requested: reference, sandboxName: sandboxReference, flags, workspaceRoot });
     const result = execSandboxCommand({ reference: sandboxReference, commandArgs, flags, workspaceRoot });
     if (isJsonFlag(flags)) {
       io.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -178,24 +178,43 @@ function handleExecCommand({ reference, commandArgs, flags, io, workspaceRoot })
   }
 }
 
-function ensureSandboxExists({ reference, flags, workspaceRoot }) {
-  const name = reference || getDefaultBlueprintId();
-  const specPath = path.join(workspaceRoot, ".plywood", "sandboxes", name, "sandbox.json");
+function ensureSandboxExists({ requested, sandboxName, flags, workspaceRoot }) {
+  const specPath = path.join(workspaceRoot, ".plywood", "sandboxes", sandboxName, "sandbox.json");
   if (fs.existsSync(specPath)) {
     return;
   }
 
-  const blueprint = requireBlueprint(reference || getDefaultBlueprintId());
+  const blueprint = requested ? loadBlueprint(requested) : requireDefaultBlueprint();
+  if (!blueprint) {
+    throw new Error(`Sandbox "${sandboxName}" was not found. Create it first with "plywood create --name ${sandboxName}".`);
+  }
+
   createBlueprintSandbox({
     blueprint,
     paths: [],
-    flags,
+    flags: {
+      ...flags,
+      name: flags.name || sandboxName
+    },
     workspaceRoot
   });
 }
 
 function resolveSandboxReference(reference) {
-  return reference || getDefaultBlueprintId();
+  if (!reference) {
+    return defaultSandboxName(requireDefaultBlueprint());
+  }
+
+  const blueprint = loadBlueprint(reference);
+  if (blueprint) {
+    return defaultSandboxName(blueprint);
+  }
+
+  return reference;
+}
+
+function defaultSandboxName(blueprint) {
+  return blueprint.runtime.defaultSandboxName || blueprint.id;
 }
 
 function handleCreateCommand({ requested, paths, flags, io, workspaceRoot }) {

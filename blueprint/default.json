@@ -1,3 +1,64 @@
 {
-  "defaultBlueprint": "product-readiness-qa"
+  "id": "default",
+  "name": "Default Codex Blueprint",
+  "version": "0.1.0",
+  "runtime": {
+    "name": "Docker SBX",
+    "mode": "agent",
+    "agentAdapter": "codex",
+    "defaultSandboxName": "plywood-codex",
+    "image": "ghcr.io/plywood/blueprint/codex:base",
+    "network": "brokered-egress-only",
+    "workspace": "/workspace",
+    "secretsSharedWithSandbox": false
+  },
+  "description": "Loads the workspace with the base context mounted read-only, then runs Codex as the sandbox agent.",
+  "agents": [
+    {
+      "id": "codex",
+      "name": "Codex Agent",
+      "runtimeBlueprint": "docker-sbx/codex",
+      "toolkit": [
+        "Codex CLI"
+      ],
+      "checks": [],
+      "tools": [
+        "workspace.read",
+        "workspace.write"
+      ]
+    }
+  ],
+  "contextMounts": {
+    "allowed": true,
+    "readOnly": true,
+    "defaultLocalPath": "context",
+    "defaultSandboxPath": "/plywood/context",
+    "acceptedInputs": [
+      "AGENTS.md",
+      "folder"
+    ],
+    "description": "Base workspace context mounted read-only into the sandbox before Codex starts."
+  },
+  "secretsPolicy": {
+    "standard": "SBX",
+    "secretsSharedWithSandbox": false,
+    "credentialOwner": "host-api-broker",
+    "sandboxReceives": [
+      "workspace files",
+      "read-only context mounts"
+    ],
+    "sandboxNeverReceives": [
+      "Shopify API tokens",
+      "app secrets",
+      "customer credentials",
+      "production access tokens",
+      "raw .env files"
+    ]
+  },
+  "policy": {
+    "safe": [],
+    "needsApproval": [],
+    "blocked": []
+  },
+  "manifestSchema": "schemas/action-manifest.schema.json"
 }

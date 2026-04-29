@@ -18,8 +18,8 @@ Usage:
 Examples:
   plywood create
   plywood run
-  plywood exec --target demo --safety-mode draft-only
   plywood exec -- npm test
+  plywood exec product-readiness-qa --target demo --safety-mode draft-only
   plywood context status
   plywood review latest
   plywood review latest --only blocked
@@ -68,10 +68,13 @@ export function formatRunSandboxResult(result) {
     `Runtime: ${result.sandbox.runtime}`,
     `Interactive: ${result.interactive}`,
     `Secrets shared with sandbox: ${result.secrets_shared_with_sandbox}`,
+    result.runtime.runner_version ? `Runner version: ${result.runtime.runner_version}` : null,
     `Runtime available: ${result.runtime.available}`,
     `Runtime executed: ${result.runtime.execute_attempted}`,
+    result.runtime.prepare_command ? `SBX prepare command: ${shellCommand(result.runtime.prepare_command)}` : null,
+    `SBX command: ${shellCommand(result.runtime.command)}`,
     `Spec: ${result.sandbox.spec}`
-  ];
+  ].filter(Boolean);
 
   if (result.context_mounts.length > 0) {
     lines.push(`Context mounts:`);
@@ -82,6 +85,22 @@ export function formatRunSandboxResult(result) {
 
   if (result.runtime.reason_not_executed) {
     lines.push(`Note: ${result.runtime.reason_not_executed}`);
+  }
+
+  if (
+    result.status === "failed" &&
+    result.runtime.prepare_attempted &&
+    result.runtime.prepare_exit_code !== 0
+  ) {
+    lines.push(`SBX prepare exit code: ${result.runtime.prepare_exit_code}`);
+    pushOutputLines(lines, "SBX prepare stdout", result.runtime.prepare_stdout);
+    pushOutputLines(lines, "SBX prepare stderr", result.runtime.prepare_stderr);
+  }
+
+  if (result.runtime.execute_attempted && result.runtime.exit_code !== 0) {
+    lines.push(`SBX exit code: ${result.runtime.exit_code}`);
+    pushOutputLines(lines, "SBX stdout", result.runtime.stdout);
+    pushOutputLines(lines, "SBX stderr", result.runtime.stderr);
   }
 
   if (result.next_steps.length > 0) {
@@ -337,4 +356,27 @@ function formatAction(action) {
     `  Reasoning: ${action.reasoning}`,
     `  Rollback: ${action.rollback_note}${approval}`
   ].join("\n");
+}
+
+function pushOutputLines(lines, label, value) {
+  const output = String(value || "").trim();
+  if (!output) {
+    return;
+  }
+
+  lines.push(`${label}:`);
+  for (const line of output.split("\n")) {
+    lines.push(`  ${line}`);
+  }
+}
+
+function shellCommand(parts) {
+  return parts.map(shellQuote).join(" ");
+}
+
+function shellQuote(value) {
+  if (/^[a-zA-Z0-9_./:=@+-]+$/.test(value)) {
+    return value;
+  }
+  return `'${String(value).replace(/'/g, "'\\''")}'`;
 }

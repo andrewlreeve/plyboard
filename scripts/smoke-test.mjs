@@ -6,20 +6,30 @@ import path from "node:path";
 const root = process.cwd();
 const cli = path.join(root, "bin", "plywood.mjs");
 
-function run(args) {
+function run(args, env = {}) {
   return execFileSync(process.execPath, [cli, ...args], {
     cwd: root,
+    env: {
+      ...process.env,
+      ...env
+    },
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
   });
 }
 
 const listOutput = run(["blueprint", "list"]);
+assert.match(listOutput, /default/);
 assert.match(listOutput, /product-readiness-qa/);
 
 const inspectOutput = run(["blueprint", "inspect"]);
 assert.match(inspectOutput, /Docker SBX/);
+assert.match(inspectOutput, /Codex Agent/);
 assert.match(inspectOutput, /Secrets shared with sandbox: false/);
+
+const productBlueprintOutput = run(["blueprint", "inspect", "product-readiness-qa"]);
+assert.match(productBlueprintOutput, /Product Readiness QA Blueprint/);
+assert.match(productBlueprintOutput, /Catalog QA Agent/);
 
 const contextStatusOutput = run(["context", "status"]);
 assert.match(contextStatusOutput, /Default context: ready/);
@@ -28,13 +38,14 @@ assert.match(contextStatusOutput, /\/plywood\/context/);
 
 const createSandboxOutput = run(["create", "--dry-run", "--json"]);
 const createSandbox = JSON.parse(createSandboxOutput);
-assert.equal(createSandbox.blueprint.id, "product-readiness-qa");
+assert.equal(createSandbox.blueprint.id, "default");
+assert.equal(createSandbox.name, "plywood-codex");
 assert.equal(createSandbox.agent_adapter, "codex");
 assert.equal(createSandbox.runtime, "Docker SBX");
 assert.equal(createSandbox.secrets_shared_with_sandbox, false);
 assert.equal(createSandbox.sbx.command[0], "sbx");
 assert.equal(createSandbox.sbx.command[1], "create");
-assert.equal(createSandbox.sbx.command[2], "codex");
+assert.deepEqual(createSandbox.sbx.command.slice(2, 5), ["--name", "plywood-codex", "codex"]);
 assert.equal(createSandbox.sbx.execute_attempted, false);
 assert.ok(
   createSandbox.context_mounts.some(
@@ -50,11 +61,47 @@ assert.ok(fs.existsSync(path.join(root, createSandbox.artifacts.create_command))
 const runSandboxOutput = run(["run", "--dry-run", "--json"]);
 const runSandbox = JSON.parse(runSandboxOutput);
 assert.equal(runSandbox.sandbox.name, createSandbox.name);
-assert.equal(runSandbox.sandbox.blueprint.id, "product-readiness-qa");
+assert.equal(runSandbox.sandbox.blueprint.id, "default");
 assert.equal(runSandbox.interactive, true);
 assert.equal(runSandbox.secrets_shared_with_sandbox, false);
+assert.equal(runSandbox.runtime.runner_version, "2026-04-29-precreate-v2");
 assert.equal(runSandbox.runtime.execute_attempted, false);
+assert.deepEqual(runSandbox.runtime.prepare_command.slice(0, 5), [
+  "sbx",
+  "create",
+  "--name",
+  "plywood-codex",
+  "codex"
+]);
+assert.ok(runSandbox.runtime.prepare_command.some((arg) => arg.endsWith("/context:ro")));
+assert.deepEqual(runSandbox.runtime.command, ["sbx", "run", "plywood-codex"]);
 assert.ok(runSandbox.next_steps.some((step) => step.includes("plywood run")));
+
+const fakeSbxDir = fs.mkdtempSync(path.join(root, ".plywood", "fake-sbx-"));
+const fakeSbxPath = path.join(fakeSbxDir, "sbx");
+const fakeSbxCapturePath = path.join(fakeSbxDir, "args.txt");
+fs.writeFileSync(
+  fakeSbxPath,
+  `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$SBX_CAPTURE"
+exit 0
+`
+);
+fs.chmodSync(fakeSbxPath, 0o755);
+const fakeRunOutput = run(["run", "--json"], {
+  PATH: `${fakeSbxDir}${path.delimiter}${process.env.PATH}`,
+  SBX_CAPTURE: fakeSbxCapturePath
+});
+const fakeRun = JSON.parse(fakeRunOutput);
+assert.equal(fakeRun.status, "completed");
+assert.equal(fakeRun.runtime.execute_attempted, true);
+assert.equal(fakeRun.runtime.prepare_attempted, true);
+const fakeSbxArgs = fs.readFileSync(fakeSbxCapturePath, "utf8").trim().split("\n");
+assert.equal(fakeSbxArgs.length, 2);
+assert.match(fakeSbxArgs[0], /^create --name plywood-codex codex /);
+assert.equal(fakeSbxArgs[1], "run plywood-codex");
+
+run(["create", "--dry-run"]);
 
 const commandExecOutput = run(["exec", "--dry-run", "--json", "--", "npm", "test"]);
 const commandExec = JSON.parse(commandExecOutput);
@@ -65,6 +112,7 @@ assert.equal(commandExec.runtime.execute_attempted, false);
 
 const runOutput = run([
   "exec",
+  "product-readiness-qa",
   "--target",
   "demo",
   "--safety-mode",

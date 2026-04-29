@@ -77,6 +77,7 @@ List and inspect the available blueprint:
 ```bash
 npm run plywood -- blueprint list
 npm run plywood -- blueprint inspect
+npm run plywood -- blueprint inspect product-readiness-qa
 ```
 
 Check the shared context and create the default sandbox plan:
@@ -90,7 +91,8 @@ Use SBX-style semantics through Plywood:
 
 ```bash
 npm run plywood -- run --dry-run
-npm run plywood -- exec --target demo --safety-mode draft-only
+npm run plywood -- exec -- npm test
+npm run plywood -- exec product-readiness-qa --target demo --safety-mode draft-only
 ```
 
 Review the latest manifest:
@@ -111,7 +113,7 @@ npm run plywood -- export-audit latest
 You can also run the executable directly:
 
 ```bash
-./bin/plywood.mjs exec --target demo --safety-mode draft-only
+./bin/plywood.mjs exec product-readiness-qa --target demo --safety-mode draft-only
 ```
 
 ## CLI
@@ -139,7 +141,7 @@ Plywood follows the SBX command model while keeping SBX behind Plywood:
 - `run` starts or attaches to the sandbox interactively.
 - `exec` runs a non-interactive command or blueprint workflow.
 
-With no blueprint id, Plywood reads `blueprint/default.json` and uses the default blueprint.
+With no blueprint id, Plywood reads the concrete default blueprint from `blueprint/default.json`.
 
 ## How Plywood Keeps Things Safe
 
@@ -189,7 +191,7 @@ Plywood creates sandboxes from blueprint definitions:
 npm run plywood -- create
 ```
 
-With no blueprint id, Plywood reads `blueprint/default.json` and uses that blueprint. The blueprint file defines the underlying runtime agent adapter. By default, Plywood uses the current workspace as the writable sandbox workspace and injects `./context` as a read-only workspace.
+With no blueprint id, Plywood reads `blueprint/default.json` and uses that concrete blueprint. The default blueprint loads the current workspace, injects `./context` as a read-only workspace, and uses Codex as the sandbox agent.
 
 The operator should not call the runtime directly. Plywood owns sandbox creation and startup.
 
@@ -210,7 +212,7 @@ npm run plywood -- run
 Run the blueprint workflow non-interactively through Plywood:
 
 ```bash
-npm run plywood -- exec --target demo --safety-mode draft-only
+npm run plywood -- exec product-readiness-qa --target demo --safety-mode draft-only
 ```
 
 Run an arbitrary command inside the sandbox through Plywood:

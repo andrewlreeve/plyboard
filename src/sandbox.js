@@ -5,6 +5,7 @@ import path from "node:path";
 import { DEFAULT_CONTEXT_DIR, DEFAULT_CONTEXT_SANDBOX_PATH, resolveContextMounts } from "./context.js";
 
 const SANDBOX_ROOT = ".plywood/sandboxes";
+const SANDBOX_RUNNER_VERSION = "2026-04-29-precreate-v2";
 
 export function createBlueprintSandbox({ blueprint, paths, flags, workspaceRoot }) {
   const agentAdapter = blueprint.runtime.agentAdapter;
@@ -18,15 +19,15 @@ export function createBlueprintSandbox({ blueprint, paths, flags, workspaceRoot 
   const extraContextInputs = normalizeRepeatedFlag(flags.context);
   const contextMounts = resolveContextMounts(extraContextInputs, workspaceRoot, { includeDefault });
   const contextWorkspaceArgs = contextMounts.map((mount) => `${mount.absolute_path}:ro`);
-  const sbxArgs = ["create", agentAdapter, ...workspaceArgs, ...contextWorkspaceArgs];
+  const sbxArgs = ["create", "--name", name];
 
-  sbxArgs.push("--name", name);
   addForwardedValueFlag(sbxArgs, flags, "branch", "--branch");
   addForwardedValueFlag(sbxArgs, flags, "memory", "--memory");
   addForwardedValueFlag(sbxArgs, flags, "cpus", "--cpus");
   addForwardedValueFlag(sbxArgs, flags, "template", "--template");
   addForwardedBooleanFlag(sbxArgs, flags, "quiet", "--quiet");
   addForwardedBooleanFlag(sbxArgs, flags, "debug", "--debug");
+  sbxArgs.push(agentAdapter, ...workspaceArgs, ...contextWorkspaceArgs);
 
   const command = ["sbx", ...sbxArgs];
   const sandboxDir = path.join(workspaceRoot, SANDBOX_ROOT, name);
@@ -119,6 +120,7 @@ export function runSandbox({ reference, flags, workspaceRoot }) {
   const spec = loadSandboxSpec(name, workspaceRoot);
   const dryRun = flags["dry-run"] === true || flags["dry-run"] === "true";
   const sbxAvailable = commandExists("sbx");
+  const prepareCommand = getSpecCreateCommand(spec);
   const command = ["sbx", "run", spec.name];
   const result = {
     schema_version: "plywood.sandbox_run.v1",
@@ -135,16 +137,20 @@ export function runSandbox({ reference, flags, workspaceRoot }) {
     context_mounts: spec.context_mounts || [],
     runtime: {
       adapter: "Docker SBX",
+      runner_version: SANDBOX_RUNNER_VERSION,
       available: sbxAvailable,
       execute_attempted: false,
-      command
+      command,
+      prepare_command: prepareCommand
     },
     next_steps: []
   };
 
   if (dryRun) {
     result.runtime.reason_not_executed = "Dry run requested.";
-    result.next_steps.push(`Run "plywood run ${spec.name}" to attach to this sandbox interactively.`);
+    result.next_steps.push(
+      `Run "plywood run ${spec.name}" to create or attach the sandbox, then start it interactively.`
+    );
     return result;
   }
 
@@ -155,7 +161,45 @@ export function runSandbox({ reference, flags, workspaceRoot }) {
     return result;
   }
 
-  const execution = spawnSync("sbx", ["run", spec.name], {
+  if (prepareCommand) {
+    const prepareExecution = spawnSync(prepareCommand[0], prepareCommand.slice(1), {
+      cwd: workspaceRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    result.runtime.prepare_attempted = true;
+    result.runtime.prepare_exit_code = prepareExecution.status;
+    result.runtime.prepare_stdout = prepareExecution.stdout;
+    result.runtime.prepare_stderr = prepareExecution.stderr;
+
+    const existingSandbox = outputMentionsExistingSandbox(prepareExecution, spec.name);
+    if (prepareExecution.status === 0 || existingSandbox) {
+      result.runtime.prepare_status = existingSandbox ? "already_exists" : "created";
+      saveSandboxSpec(
+        {
+          ...spec,
+          status: "created",
+          sbx: {
+            ...spec.sbx,
+            execute_attempted: true,
+            exit_code: prepareExecution.status,
+            available: true,
+            stdout: prepareExecution.stdout,
+            stderr: prepareExecution.stderr
+          }
+        },
+        workspaceRoot
+      );
+    } else {
+      result.status = "failed";
+      result.runtime.execute_attempted = true;
+      result.runtime.exit_code = prepareExecution.status || 1;
+      result.runtime.reason_not_executed = "Sandbox preparation failed.";
+      return result;
+    }
+  }
+
+  const execution = spawnSync("sbx", command.slice(1), {
     cwd: workspaceRoot,
     encoding: "utf8",
     stdio: flags.json === true || flags.json === "true" ? ["ignore", "pipe", "pipe"] : "inherit"
@@ -245,6 +289,18 @@ function normalizeWorkspaceArgs(paths, workspaceRoot) {
   });
 }
 
+function getSpecCreateCommand(spec) {
+  return ["sbx", "create", "--name", spec.name, spec.agent_adapter, ...getSpecWorkspaceArgs(spec)];
+}
+
+function getSpecWorkspaceArgs(spec) {
+  if (Array.isArray(spec.sbx?.workspace_args) && spec.sbx.workspace_args.length > 0) {
+    return spec.sbx.workspace_args;
+  }
+
+  return [spec.workspace_root || "."];
+}
+
 function normalizeRepeatedFlag(value) {
   if (value === undefined || value === false) {
     return [];
@@ -292,6 +348,16 @@ function loadSandboxSpec(name, workspaceRoot) {
     throw new Error(`Sandbox "${name}" was not found. Create it first with "plywood create --name ${name}".`);
   }
   return JSON.parse(fs.readFileSync(specPath, "utf8"));
+}
+
+function saveSandboxSpec(spec, workspaceRoot) {
+  const specPath = path.join(workspaceRoot, SANDBOX_ROOT, spec.name, "sandbox.json");
+  fs.writeFileSync(specPath, `${JSON.stringify(spec, null, 2)}\n`);
+}
+
+function outputMentionsExistingSandbox(execution, name) {
+  const output = `${execution.stdout || ""}\n${execution.stderr || ""}`;
+  return output.includes("already exists") && output.includes(name);
 }
 
 function normalizeSandboxReference(reference) {
