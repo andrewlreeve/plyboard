@@ -35,14 +35,14 @@
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Run</p>
-                <h2>Start Review</h2>
+                <h2>Run Agent</h2>
               </div>
               <button id="refresh-button" class="ghost-button" type="button">Refresh</button>
             </div>
 
             <form id="run-form" class="stack">
               <label class="field">
-                <span>Blueprint</span>
+                <span>Agent Blueprint</span>
                 <select id="blueprint-select" name="blueprintId"></select>
               </label>
 
@@ -76,7 +76,7 @@
                 ></textarea>
               </label>
 
-              <button id="run-button" class="primary-button" type="submit">Run Blueprint</button>
+              <button id="run-button" class="primary-button" type="submit">Run Agent</button>
             </form>
 
             <section class="subpanel">
@@ -116,73 +116,60 @@
           <section class="content">
             <div class="stats-grid fade-up" style="animation-delay: 140ms">
               <article class="stat-card">
-                <span class="stat-label">Review</span>
+                <span class="stat-label">Agent Blueprint</span>
                 <strong id="stat-blueprint">Waiting</strong>
                 <span id="stat-runtime" class="stat-meta">No blueprint loaded</span>
               </article>
-              <article class="stat-card">
-                <span class="stat-label">Agents</span>
-                <strong id="stat-agents">0 / 0</strong>
-                <span class="stat-meta">Completed</span>
-              </article>
               <article class="stat-card stat-card-safe">
-                <span class="stat-label">Safe</span>
+                <span class="stat-label">Ready</span>
                 <strong id="stat-safe">0</strong>
-                <span class="stat-meta">Draft or audit actions</span>
+                <span class="stat-meta">No review needed</span>
               </article>
               <article class="stat-card stat-card-approval">
-                <span class="stat-label">Needs Approval</span>
+                <span class="stat-label">Needs Review</span>
                 <strong id="stat-approval">0</strong>
-                <span class="stat-meta">Operator gate</span>
+                <span class="stat-meta">Awaiting decision</span>
               </article>
               <article class="stat-card stat-card-blocked">
                 <span class="stat-label">Blocked</span>
                 <strong id="stat-blocked">0</strong>
-                <span class="stat-meta">Not executable</span>
+                <span class="stat-meta">Will not run</span>
               </article>
             </div>
 
             <section class="panel summary fade-up" style="animation-delay: 220ms">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">Summary</p>
-                  <h2 id="run-title">No run loaded</h2>
+                  <p class="eyebrow">Current Review</p>
+                  <h2 id="run-title">Choose a review</h2>
                 </div>
                 <span id="run-status" class="pill neutral">Awaiting run</span>
               </div>
 
+              <p id="run-overview" class="run-overview">Start a review to see findings and recommended changes.</p>
+
               <div id="run-metadata" class="summary-grid"></div>
 
-              <div class="detail-rail">
-                <section class="info-block">
-                  <div class="subpanel-head">
-                    <h3>Agents In This Run</h3>
-                    <span id="agent-count" class="pill neutral">0 agents</span>
-                  </div>
-                  <div id="agent-list" class="chip-list"></div>
-                </section>
-
-                <section class="info-block">
-                  <div class="subpanel-head">
-                    <h3>Instructions Used</h3>
-                    <span id="mount-count" class="pill neutral">0 files</span>
-                  </div>
-                  <p id="mount-summary" class="instruction-summary"></p>
-                  <div id="mount-list" class="simple-tag-list"></div>
-                </section>
-              </div>
+              <section class="info-block summary-detail">
+                <div class="subpanel-head">
+                  <h3>Instructions Used</h3>
+                  <span id="mount-count" class="pill neutral">0 files</span>
+                </div>
+                <p id="mount-summary" class="instruction-summary"></p>
+                <div id="mount-list" class="simple-tag-list"></div>
+              </section>
 
               <div class="toolbar">
                 <div id="filter-group" class="segmented">
                   <button class="segment active" data-filter="all" type="button">All</button>
-                  <button class="segment" data-filter="safe" type="button">Safe</button>
-                  <button class="segment" data-filter="needs_approval" type="button">Needs Approval</button>
+                  <button class="segment" data-filter="safe" type="button">Ready</button>
+                  <button class="segment" data-filter="needs_approval" type="button">Needs Review</button>
                   <button class="segment" data-filter="blocked" type="button">Blocked</button>
                 </div>
 
                 <div class="toolbar-actions">
                   <button id="approve-button" class="secondary-button" type="button">Approve Selected</button>
-                  <button id="approve-all-button" class="secondary-button" type="button">Approve All Requiring Review</button>
+                  <button id="approve-all-button" class="secondary-button" type="button">Approve All Needing Review</button>
                   <button id="export-button" class="ghost-button" type="button">Export Review Packet</button>
                 </div>
               </div>
@@ -204,7 +191,7 @@
                 <div class="panel-head">
                   <div>
                     <p class="eyebrow">Findings</p>
-                    <h2>Storefront Merchandising</h2>
+                    <h2>Storefront</h2>
                   </div>
                   <span id="storefront-count" class="pill neutral">0 audits</span>
                 </div>

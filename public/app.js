@@ -32,12 +32,11 @@ const elements = {
   activityLog: document.querySelector("#activity-log"),
   activityState: document.querySelector("#activity-state"),
   runTitle: document.querySelector("#run-title"),
+  runOverview: document.querySelector("#run-overview"),
   runStatus: document.querySelector("#run-status"),
   runMetadata: document.querySelector("#run-metadata"),
-  agentList: document.querySelector("#agent-list"),
   mountList: document.querySelector("#mount-list"),
   mountSummary: document.querySelector("#mount-summary"),
-  agentCount: document.querySelector("#agent-count"),
   mountCount: document.querySelector("#mount-count"),
   contextSummary: document.querySelector("#context-summary"),
   contextStatusPill: document.querySelector("#context-status-pill"),
@@ -49,7 +48,6 @@ const elements = {
   storefrontCount: document.querySelector("#storefront-count"),
   statBlueprint: document.querySelector("#stat-blueprint"),
   statRuntime: document.querySelector("#stat-runtime"),
-  statAgents: document.querySelector("#stat-agents"),
   statSafe: document.querySelector("#stat-safe"),
   statApproval: document.querySelector("#stat-approval"),
   statBlocked: document.querySelector("#stat-blocked"),
@@ -113,6 +111,7 @@ elements.runForm.addEventListener("submit", async (event) => {
       await loadBlueprintDetail(manifest.blueprint.id);
     }
 
+    state.filter = suggestedFilter(manifest);
     render();
     setActivityState("Run Complete", "safe");
     logActivity(`Run ${manifest.run.id} completed with ${manifest.policy_summary.total} actions.`, "safe");
@@ -352,6 +351,7 @@ async function boot() {
   state.contextStatus = contextStatus;
   state.contextFiles = contextFiles.files;
   state.manifest = manifest;
+  state.filter = suggestedFilter(manifest);
   populateBlueprints();
 
   if (state.manifest?.blueprint?.id) {
@@ -374,7 +374,7 @@ async function refreshLatestRun() {
   try {
     setBusy(true);
     setActivityState("Refreshing", "neutral");
-    logActivity("Refreshing latest run from the CLI workspace.", "neutral");
+    logActivity("Refreshing the latest review.", "neutral");
     state.manifest = await loadLatestManifest();
     state.selectedActions.clear();
 
@@ -493,9 +493,8 @@ function renderContext() {
 
   const items = context.exists
     ? [
-        "Agents use these shared instructions on every run.",
-        `${context.file_count} instruction file${context.file_count === 1 ? "" : "s"} available.`,
-        "Changes here apply automatically to future runs."
+        "Every review uses these shared instructions.",
+        `${context.file_count} instruction file${context.file_count === 1 ? "" : "s"} ready for future runs.`
       ]
     : ["No shared instructions folder is available yet."];
 
@@ -508,25 +507,18 @@ function renderContext() {
 
 function renderSummary() {
   const manifest = state.manifest;
-  const blueprint = manifest
-    ? {
-        name: manifest.blueprint.name,
-        runtime: {
-          name: manifest.blueprint.runtime,
-          mode: manifest.blueprint.runtime_mode
-        }
-      }
-    : state.activeBlueprint;
+  const blueprint = manifest ? manifest.blueprint : state.activeBlueprint;
 
   elements.statBlueprint.textContent = blueprint?.name || "Waiting";
   elements.statRuntime.textContent = state.activeBlueprint?.description || "Choose a review to begin.";
 
   if (!manifest) {
-    elements.runTitle.textContent = "No run loaded";
+    elements.runTitle.textContent = state.activeBlueprint?.name || "Choose a review";
+    elements.runOverview.textContent =
+      state.activeBlueprint?.description || "Start a review to see findings and recommended changes.";
     elements.runStatus.textContent = "Awaiting run";
     elements.runStatus.className = "pill neutral";
     elements.runMetadata.innerHTML = "";
-    renderAgentList(state.activeBlueprint?.agents || []);
     renderMountList(
       state.activeBlueprint?.contextMounts?.defaultLocalPath
         ? [
@@ -538,28 +530,25 @@ function renderSummary() {
           ]
         : []
     );
-    elements.statAgents.textContent = "0 / 0";
     elements.statSafe.textContent = "0";
     elements.statApproval.textContent = "0";
     elements.statBlocked.textContent = "0";
     return;
   }
 
-  elements.runTitle.textContent = manifest.run.id;
+  elements.runTitle.textContent = manifest.blueprint.name;
+  elements.runOverview.textContent = buildRunOverview(manifest);
   elements.runStatus.textContent = manifest.run.status;
   elements.runStatus.className = "pill safe";
-  elements.statAgents.textContent = `${manifest.agents.length} / ${manifest.agents.length}`;
   elements.statSafe.textContent = String(manifest.policy_summary.safe);
   elements.statApproval.textContent = String(manifest.policy_summary.needs_approval);
   elements.statBlocked.textContent = String(manifest.policy_summary.blocked);
 
   const metadata = [
     ["Store", formatTarget(manifest.run.target_environment)],
-    ["Approval Setting", formatSafetyMode(manifest.run.safety_mode)],
-    ["Shared Instructions", String(manifest.sbx.mounted_context.length)],
-    ["Approvals Recorded", String((manifest.approvals || []).length)],
-    ["Review Packet", manifest.audit_packet.generated ? "Ready" : "Pending"],
-    ["Undo Plan", manifest.rollback_plan.generated ? "Ready" : "Pending"]
+    ["Review Setting", formatSafetyMode(manifest.run.safety_mode)],
+    ["Started", formatTimestamp(manifest.run.created_at)],
+    ["Approved", String((manifest.approvals || []).length)]
   ];
 
   if (state.exportResult?.exported_to) {
@@ -578,7 +567,6 @@ function renderSummary() {
     elements.runMetadata.append(wrapper);
   }
 
-  renderAgentList(manifest.agents || []);
   renderMountList(manifest.sbx.mounted_context || []);
 }
 
@@ -645,6 +633,7 @@ function renderActions() {
   for (const action of actions) {
     const fragment = elements.actionTemplate.content.cloneNode(true);
     const card = fragment.querySelector(".action-card");
+    const select = fragment.querySelector(".action-select");
     const checkbox = fragment.querySelector(".action-checkbox");
     const isSelectable = action.policy_result === "needs_approval" && !action.approval;
 
@@ -652,8 +641,10 @@ function renderActions() {
     checkbox.checked = state.selectedActions.has(action.id);
 
     const syncSelectedState = () => {
+      select.classList.toggle("action-select-hidden", !isSelectable);
       card.classList.toggle("action-card-selectable", isSelectable);
       card.classList.toggle("action-card-selected", checkbox.checked);
+      card.classList.toggle("action-card-static", !isSelectable);
       card.classList.toggle("action-card-disabled", !isSelectable);
       card.setAttribute("aria-disabled", String(!isSelectable));
     };
@@ -702,7 +693,7 @@ function renderActions() {
     }
 
     fragment.querySelector(".action-id").textContent = action.id;
-    fragment.querySelector(".action-type").textContent = action.action_type;
+    fragment.querySelector(".action-type").textContent = formatActionType(action.action_type);
     fragment.querySelector(".action-resource").textContent = action.resource;
 
     const policy = fragment.querySelector(".action-policy");
@@ -713,19 +704,15 @@ function renderActions() {
     risk.textContent = action.risk;
     risk.className = `pill action-risk ${riskClass(action.risk)}`;
 
-    fragment.querySelector(".action-meta").innerHTML = [
-      `<span>Reviewed by: ${action.agent_id}</span>`,
-      `<span>Action type: ${action.action_type}</span>`,
-      `<span>Why it is classified this way: ${action.policy_rule}</span>`
-    ].join("");
+    fragment.querySelector(".action-meta").innerHTML = [`<span>Suggested by ${formatAgentName(action.agent_id)}</span>`].join("");
 
     fragment.querySelector(".action-before").textContent = action.before;
     fragment.querySelector(".action-after").textContent = action.after;
-    fragment.querySelector(".action-reasoning").textContent = `Reasoning: ${action.reasoning}`;
+    fragment.querySelector(".action-reasoning").textContent = summarizeActionReason(action);
 
     const rollbackText = action.approval
-      ? `Rollback: ${action.rollback_note} Approved by ${action.approval.actor} at ${action.approval.approved_at}.`
-      : `Rollback: ${action.rollback_note}`;
+      ? `Rollback plan: ${action.rollback_note} Approved by ${action.approval.actor} on ${formatTimestamp(action.approval.approved_at)}.`
+      : `Rollback plan: ${action.rollback_note}`;
     fragment.querySelector(".action-rollback").textContent = rollbackText;
 
     syncSelectedState();
@@ -880,36 +867,17 @@ function readApprovalNote() {
 }
 
 function formatPolicy(policy) {
-  return policy.replace(/_/g, " ");
+  return (
+    {
+      safe: "Ready",
+      needs_approval: "Needs Review",
+      blocked: "Blocked"
+    }[policy] || policy.replace(/_/g, " ")
+  );
 }
 
 function riskClass(value) {
   return ["low", "medium", "high", "critical"].includes(value) ? value : "neutral";
-}
-
-function renderAgentList(agents) {
-  elements.agentList.innerHTML = "";
-  elements.agentCount.textContent = `${agents.length} agent${agents.length === 1 ? "" : "s"}`;
-
-  if (agents.length === 0) {
-    elements.agentList.textContent = "No agent wiring available.";
-    elements.agentList.classList.add("empty-state");
-    return;
-  }
-
-  elements.agentList.classList.remove("empty-state");
-
-  for (const agent of agents) {
-    const card = document.createElement("div");
-    card.className = "chip-card";
-    const name = document.createElement("strong");
-    name.textContent = agent.name;
-    const detail = document.createElement("span");
-    const checks = Array.isArray(agent.checks) ? `${agent.checks.length} review checks` : "Review checks available";
-    detail.textContent = checks;
-    card.append(name, detail);
-    elements.agentList.append(card);
-  }
 }
 
 function renderMountList(mounts) {
@@ -917,7 +885,7 @@ function renderMountList(mounts) {
   elements.mountCount.textContent = `${mounts.length} file${mounts.length === 1 ? "" : "s"}`;
 
   if (mounts.length === 0) {
-    elements.mountSummary.textContent = "No shared instructions were recorded for this review.";
+    elements.mountSummary.textContent = "No shared guidance was recorded for this review.";
     elements.mountList.classList.remove("empty-state");
     return;
   }
@@ -926,11 +894,11 @@ function renderMountList(mounts) {
   const extraMounts = mounts.length - defaultMounts;
 
   if (defaultMounts > 0 && extraMounts > 0) {
-    elements.mountSummary.textContent = `This review used your standard brand guidance plus ${extraMounts} extra instruction file${extraMounts === 1 ? "" : "s"}.`;
+    elements.mountSummary.textContent = `This review used your standard guidance and ${extraMounts} extra note${extraMounts === 1 ? "" : "s"}.`;
   } else if (defaultMounts > 0) {
-    elements.mountSummary.textContent = "This review used your standard brand guidance.";
+    elements.mountSummary.textContent = "This review used your standard guidance.";
   } else {
-    elements.mountSummary.textContent = `This review used ${mounts.length} extra instruction file${mounts.length === 1 ? "" : "s"}.`;
+    elements.mountSummary.textContent = `This review used ${mounts.length} extra note${mounts.length === 1 ? "" : "s"}.`;
   }
 
   for (const mount of mounts) {
@@ -966,7 +934,106 @@ function formatMountName(sourcePath) {
   if (sourcePath === ".plywood/gui-inputs/review-instructions.md") {
     return "Notes for this review";
   }
-  return sourcePath;
+  if (sourcePath === "context") {
+    return "Standard brand guidance";
+  }
+  return sourcePath.replace(/^context\//, "");
+}
+
+function buildRunOverview(manifest) {
+  const parts = [];
+
+  if (manifest.policy_summary.needs_approval > 0) {
+    parts.push(
+      `${manifest.policy_summary.needs_approval} change${manifest.policy_summary.needs_approval === 1 ? " needs" : "s need"} review`
+    );
+  }
+
+  if (manifest.policy_summary.safe > 0) {
+    parts.push(`${manifest.policy_summary.safe} ${manifest.policy_summary.safe === 1 ? "is" : "are"} ready`);
+  }
+
+  if (manifest.policy_summary.blocked > 0) {
+    parts.push(
+      `${manifest.policy_summary.blocked} change${manifest.policy_summary.blocked === 1 ? "" : "s"} ${manifest.policy_summary.blocked === 1 ? "is" : "are"} blocked`
+    );
+  }
+
+  if (parts.length === 0) {
+    return "No recommended changes were recorded for this review.";
+  }
+
+  return `${parts.join(". ")}.`;
+}
+
+function suggestedFilter(manifest) {
+  if (!manifest) {
+    return "all";
+  }
+  if (manifest.policy_summary.needs_approval > 0) {
+    return "needs_approval";
+  }
+  if (manifest.policy_summary.blocked > 0) {
+    return "blocked";
+  }
+  return "all";
+}
+
+function formatActionType(actionType) {
+  return (
+    {
+      "product.read": "Review Product",
+      "product.enrichment_draft": "Draft Product Copy",
+      "product.seo_draft": "Draft SEO Update",
+      "product.image_alt_text_draft": "Draft Alt Text",
+      "product.media_issue_flag": "Flag Media Issue",
+      "product.publish_readiness_check": "Check Publish Readiness",
+      "storefront.product_quality_audit": "Audit Storefront Product",
+      "collection.merchandising_recommendation": "Merchandising Recommendation",
+      "product.publish": "Publish Product",
+      "product.publish.ready": "Mark Ready To Publish",
+      "collection.publish": "Publish Collection",
+      "collection.sort_update": "Reorder Collection",
+      "product.update_price": "Update Price",
+      "inventory.update": "Update Inventory",
+      "product.media_delete": "Delete Product Media",
+      "inventory.decrement": "Reduce Inventory",
+      "theme.publish.production": "Publish Storefront Theme",
+      "customer.email_send": "Send Customer Email",
+      "payment.capture": "Capture Payment",
+      "refund.create": "Create Refund",
+      "admin_user.create": "Create Admin User",
+      "webhook.create": "Create Webhook"
+    }[actionType] ||
+    actionType
+      .replace(/[._]/g, " ")
+      .replace(/\b\w/g, (match) => match.toUpperCase())
+  );
+}
+
+function formatAgentName(agentId) {
+  return (
+    {
+      "catalog-qa": "Catalog QA",
+      "storefront-merchandising": "Storefront Merchandising"
+    }[agentId] || agentId.replace(/[-_]/g, " ").replace(/\b\w/g, (match) => match.toUpperCase())
+  );
+}
+
+function summarizeActionReason(action) {
+  if (action.policy_result === "needs_approval") {
+    return "Needs review because it affects pricing, inventory, publish state, or the live storefront.";
+  }
+
+  if (action.policy_result === "blocked") {
+    return "Blocked because this workflow does not allow that kind of change.";
+  }
+
+  if (action.policy_result === "safe") {
+    return "Ready because this step is read-only, draft-only, or advisory.";
+  }
+
+  return action.reasoning;
 }
 
 function selectedBlueprintName(blueprintId) {
